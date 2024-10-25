@@ -232,18 +232,19 @@ if __name__ == "__main__":
     res_queue = Queue()
     img = 'watermarked_image.bmp'
     loaded_img = cv2.imread(img, 0)
+    original_img = cv2.imread("lena_grey.bmp", 0)
 
     with ProcessPoolExecutor() as executor:
         futures = [executor.submit(apply_attack_queue, img, attack, None, i) for i, attack in enumerate(attacks)]
-        results = []
+    results = []
     for future in futures:
         results.append(future.result())
 
     watermark = np.load('findbrivateknowledge.npy')
     watermark = cv2.resize(watermark, (32, 32))
     U_wm, S_wm, V_wm = svd(watermark)
-    for result in results:
-        watermarks = extraction(result, loaded_img, U_wm, V_wm)
+    for i, result in enumerate(results):
+        watermarks = extraction(result, original_img, U_wm, V_wm)
         watermarks_values = [similarity(watermark, wm) for wm in watermarks]
-        print(watermarks_values, wpsnr(loaded_img, result))
+        print(watermarks_values, wpsnr(loaded_img, result), attacks[i][0]["attack"])
     

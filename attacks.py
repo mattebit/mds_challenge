@@ -2,7 +2,6 @@ import datetime
 import os
 from enum import Enum
 from math import sqrt
-from queue import Queue
 
 import numpy as np
 from PIL import Image
@@ -14,6 +13,9 @@ from skimage.transform import rescale
 import cv2
 from canny import extraction, similarity
 from copy import deepcopy
+from multiprocessing import Process, Queue
+from concurrent.futures import ProcessPoolExecutor
+import pprint
 
 
 def show(*args: np.ndarray):
@@ -140,7 +142,7 @@ def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.
     ]
     """
     original_image = cv2.imread(im, 0)
-    attacking: np.ndarray = deepcopy(original_image)
+    attacking: np.ndarray = original_image
 
     for a in l:
         a_type: Attack = a["attack"]
@@ -167,10 +169,10 @@ def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.
         wpsnr_value = wpsnr(original_image, attacking)
         # TODO add similarity
         t_end = datetime.datetime.now()
-        print((t_end - t_start).seconds)
-        res_queue.put({query_id, wpsnr_value})
+        # print((t_end - t_start).seconds)
+        res_queue.put(tuple([query_id, wpsnr_value]), block=True)
 
-    return deepcopy(attacking)
+    return attacking
 
 
 if __name__ == "__main__":
@@ -228,13 +230,20 @@ if __name__ == "__main__":
                 
                ]]
     res_queue = Queue()
-    for i, attack_mode in enumerate(attacks):
-        img = 'watermarked_image.bmp'
-        attacked_img = apply_attack_queue(img, attack_mode, res_queue, i)
-        watermark = np.load('findbrivateknowledge.npy')
-        watermark = cv2.resize(watermark, (32, 32))
-        U_wm, S_wm, V_wm = svd(watermark)
-        watermarks = extraction(attacked_img, original, U_wm, V_wm)
-        for i, wm in enumerate(watermarks):
-            print("Sim", i, ":", similarity(watermark, wm))
-    print([res_queue.get() for _ in range(res_queue._qsize())])
+    img = 'watermarked_image.bmp'
+    loaded_img = cv2.imread(img, 0)
+
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(apply_attack_queue, img, attack, None, i) for i, attack in enumerate(attacks)]
+        results = []
+    for future in futures:
+        results.append(future.result())
+
+    watermark = np.load('findbrivateknowledge.npy')
+    watermark = cv2.resize(watermark, (32, 32))
+    U_wm, S_wm, V_wm = svd(watermark)
+    for result in results:
+        watermarks = extraction(result, loaded_img, U_wm, V_wm)
+        watermarks_values = [similarity(watermark, wm) for wm in watermarks]
+        print(watermarks_values, wpsnr(loaded_img, result))
+    

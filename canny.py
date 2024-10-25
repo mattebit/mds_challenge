@@ -76,35 +76,40 @@ watermark = np.load('findbrivateknowledge.npy')
 watermark = cv2.resize(watermark, (32, 32))
 low_threshold = 50
 high_threshold = 150
+if __name__ == "__main__":
+    image = cv2.imread('lena_grey.bmp', 0)
+    watermark = np.load('findbrivateknowledge.npy')
+    watermark = cv2.resize(watermark, (32, 32))
 
-edges = cv2.Canny(image, low_threshold, high_threshold)
+    edges = cv2.Canny(image, low_threshold, high_threshold)
 
-regions = select_best_regions(edges, block_size=64, threshold=66)
+    regions = select_best_regions(edges, block_size=64, threshold=66)
 
-watermarked_image = image.copy()
-for region in regions:
-    x, y, block_h, block_w = region
-    block = image[x:x+block_h, y:y+block_w]
+    watermarked_image = image.copy()
+    for region in regions:
+        x, y, block_h, block_w = region
+        block = image[x:x+block_h, y:y+block_w]
 
-    LL, (LH, HL, HH) = pywt.dwt2(block, 'haar')
-    LL_prime = embed_watermark_svd(LL, watermark)
-    
-    block_prime = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
-    
-    watermarked_image[x:x+block_h, y:y+block_w] = block_prime
+        LL, (LH, HL, HH) = pywt.dwt2(block, 'haar')
+        LL_prime = embed_watermark_svd(LL, watermark)
+        
+        block_prime = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
+        
+        watermarked_image[x:x+block_h, y:y+block_w] = block_prime
 
-U_wm, S_wm, V_wm = svd(watermark)
-watermarks = extraction(watermarked_image, image, U_wm, V_wm)
+    U_wm, S_wm, V_wm = svd(watermark)
+    watermarks = extraction(watermarked_image, image, U_wm, V_wm)
 
-# Save or display the watermarked image
-# cv2.imwrite('watermarked_image.png', np.uint8(watermarked_image))
+    # Save or display the watermarked image
+    # cv2.imwrite('watermarked_image.png', np.uint8(watermarked_image))
 
-#cv2.imshow('Edges', edges)
-cv2.imshow('Watermarked Image', np.uint8(watermarked_image))
-print(f'WPSNR: {wpsnr(image, watermarked_image)}')
+    #cv2.imshow('Edges', edges)
+    # cv2.imshow('Watermarked Image', np.uint8(watermarked_image))
+    cv2.imwrite('watermarked_image.bmp', watermarked_image)
+    print(f'WPSNR: {wpsnr(image, watermarked_image)}')
 
-for i, w in enumerate(watermarks):
-    print("Sim", i, ":", similarity(watermark, w))
+    for i, w in enumerate(watermarks):
+        print("Sim", i, ":", similarity(watermark, w))
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()

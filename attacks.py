@@ -9,7 +9,11 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter
 from scipy.signal import medfilt, convolve2d
+from scipy.linalg import svd
 from skimage.transform import rescale
+import cv2
+from canny import extraction, similarity
+from copy import deepcopy
 
 
 def show(*args: np.ndarray):
@@ -56,7 +60,6 @@ def attack_blur(img: np.ndarray, sigma) -> np.ndarray:
     """
     attack_blur(im, [2,2])
     """
-    from scipy.ndimage.filters import gaussian_filter
     attacked = gaussian_filter(img, sigma)
     return attacked
 
@@ -122,7 +125,7 @@ demo_attacks = [
 ]
 
 
-def apply_attack_queue(im: np.ndarray, l: list, res_queue: Queue, id=None) -> np.ndarray:
+def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.ndarray:
     """
     Apply the given list of attacks to the given image and return the attacked image.
     demo_attacks = [
@@ -134,17 +137,21 @@ def apply_attack_queue(im: np.ndarray, l: list, res_queue: Queue, id=None) -> np
     }
     ]
     """
-    attacked: np.ndarray = im
+    original_image = cv2.imread(im, 0)
+    attacked: np.ndarray = deepcopy(original_image)
+    print(hex(id(attacked)))
 
     for a in l:
         a_type: Attack = a["attack"]
         a_params: dict[any] = a["params"]
         if a_type == Attack.SHARPEN:
-            attacked = attack_sharpen(attacked, a_params["sigma"], a_params["alpha"])
+            attacked = attack_sharpen(
+                attacked, a_params["sigma"], a_params["alpha"])
         elif a_type == Attack.BLUR:
             attacked = attack_blur(attacked, a_params["sigma"])
         elif a_type == Attack.AWGN:
-            attacked = attack_AWGN(attacked, a_params["std"], a_params["seed"], a_params["mean"])
+            attacked = attack_AWGN(
+                attacked, a_params["std"], a_params["seed"], a_params["mean"])
         elif a_type == Attack.JPEG:
             attacked = attack_jpeg(attacked, a_params["QF"])
         elif a_type == Attack.MEDIAN:
@@ -156,10 +163,54 @@ def apply_attack_queue(im: np.ndarray, l: list, res_queue: Queue, id=None) -> np
 
     if res_queue is not None:
         t_start = datetime.datetime.now()
-        w = wpsnr(im, attacked)
+        wpsnr_value = wpsnr(original_image, attacked)
         # TODO add similarity
         t_end = datetime.datetime.now()
         print((t_end - t_start).seconds)
-        res_queue.put({id, w})
+        res_queue.put({query_id, wpsnr_value})
 
-    return attacked
+    return deepcopy(attacked)
+
+
+if __name__ == "__main__":
+    img = "watermarked_image.bmp"
+    original = cv2.imread('lena_grey.bmp', 0)
+    watermark = np.load('findbrivateknowledge.npy')
+    watermark = cv2.resize(watermark, (32, 32))
+    U_wm, S_wm, V_wm = svd(watermark)
+    attacks = [demo_attacks,
+               [
+                   {
+                       "attack": Attack.BLUR,
+                       "params": {
+                           "sigma": [1, 1]
+                       }
+                   },
+               ], [
+                   {
+                       "attack": Attack.JPEG,
+                       "params": {
+                           "QF": 20
+                       }
+                   }
+               ], [
+                   {
+                       "attack": Attack.AWGN,
+                       "params": {
+                           "std": 10,
+                           "seed": 0,
+                           "mean": 0
+                       }
+                   }
+               ]]
+    res_queue = Queue()
+    for i, attack_mode in enumerate(attacks):
+        img = 'watermarked_image.bmp'
+        attacked_img = apply_attack_queue(img, attack_mode, res_queue, i)
+        watermark = np.load('findbrivateknowledge.npy')
+        watermark = cv2.resize(watermark, (32, 32))
+        U_wm, S_wm, V_wm = svd(watermark)
+        watermarks = extraction(attacked_img, original, U_wm, V_wm)
+        for i, w in enumerate(watermarks):
+            print("Sim", i, ":", similarity(watermark, w))
+    print([res_queue.get() for _ in range(res_queue._qsize())])

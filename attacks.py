@@ -88,6 +88,8 @@ def attack_resizing(img: np.ndarray, scale: float) -> np.ndarray:
     attacked = rescale(img, scale)
     attacked = rescale(attacked, 1 / scale)
     attacked = attacked[:x, :y]
+    if attacked.shape[0] != x or attacked.shape[1] != y:
+        attacked = cv2.resize(attacked, (x, y))
     return attacked
 
 
@@ -138,38 +140,37 @@ def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.
     ]
     """
     original_image = cv2.imread(im, 0)
-    attacked: np.ndarray = deepcopy(original_image)
-    print(hex(id(attacked)))
+    attacking: np.ndarray = deepcopy(original_image)
 
     for a in l:
         a_type: Attack = a["attack"]
         a_params: dict[any] = a["params"]
         if a_type == Attack.SHARPEN:
-            attacked = attack_sharpen(
-                attacked, a_params["sigma"], a_params["alpha"])
+            attacking = attack_sharpen(
+                attacking, a_params["sigma"], a_params["alpha"])
         elif a_type == Attack.BLUR:
-            attacked = attack_blur(attacked, a_params["sigma"])
+            attacking = attack_blur(attacking, a_params["sigma"])
         elif a_type == Attack.AWGN:
-            attacked = attack_AWGN(
-                attacked, a_params["std"], a_params["seed"], a_params["mean"])
+            attacking = attack_AWGN(
+                attacking, a_params["std"], a_params["seed"], a_params["mean"])
         elif a_type == Attack.JPEG:
-            attacked = attack_jpeg(attacked, a_params["QF"])
+            attacking = attack_jpeg(attacking, a_params["QF"])
         elif a_type == Attack.MEDIAN:
-            attacked = attack_median(attacked, a_params["kernel_size"])
+            attacking = attack_median(attacking, a_params["kernel_size"])
         elif a_type == Attack.RESIZING:
-            attacked = attack_resizing(attacked, a_params["scale"])
+            attacking = attack_resizing(attacking, a_params["scale"])
         else:
             raise KeyError(f"invalid attack in dict: {a_type}")
-
+    print("Attack applied: ", l)
     if res_queue is not None:
         t_start = datetime.datetime.now()
-        wpsnr_value = wpsnr(original_image, attacked)
+        wpsnr_value = wpsnr(original_image, attacking)
         # TODO add similarity
         t_end = datetime.datetime.now()
         print((t_end - t_start).seconds)
         res_queue.put({query_id, wpsnr_value})
 
-    return deepcopy(attacked)
+    return deepcopy(attacking)
 
 
 if __name__ == "__main__":
@@ -178,8 +179,7 @@ if __name__ == "__main__":
     watermark = np.load('findbrivateknowledge.npy')
     watermark = cv2.resize(watermark, (32, 32))
     U_wm, S_wm, V_wm = svd(watermark)
-    attacks = [demo_attacks,
-               [
+    attacks = [[
                    {
                        "attack": Attack.BLUR,
                        "params": {
@@ -202,6 +202,30 @@ if __name__ == "__main__":
                            "mean": 0
                        }
                    }
+               ],[
+                     {
+                          "attack": Attack.MEDIAN,
+                          "params": {
+                            "kernel_size": 3
+                          }
+                     }
+                ], [
+                     {
+                          "attack": Attack.RESIZING,
+                          "params": {
+                            "scale": 0.2
+                          }
+                     }
+               ],
+               [
+                     {
+                          "attack": Attack.SHARPEN,
+                          "params": {
+                            "sigma": 1,
+                            "alpha": 1
+                          }
+                     }
+                
                ]]
     res_queue = Queue()
     for i, attack_mode in enumerate(attacks):
@@ -211,6 +235,6 @@ if __name__ == "__main__":
         watermark = cv2.resize(watermark, (32, 32))
         U_wm, S_wm, V_wm = svd(watermark)
         watermarks = extraction(attacked_img, original, U_wm, V_wm)
-        for i, w in enumerate(watermarks):
-            print("Sim", i, ":", similarity(watermark, w))
+        for i, wm in enumerate(watermarks):
+            print("Sim", i, ":", similarity(watermark, wm))
     print([res_queue.get() for _ in range(res_queue._qsize())])

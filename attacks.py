@@ -1,11 +1,14 @@
+import datetime
 import os
 from enum import Enum
+from math import sqrt
+from queue import Queue
 
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter
-from scipy.signal import medfilt
+from scipy.signal import medfilt, convolve2d
 from skimage.transform import rescale
 
 
@@ -32,6 +35,21 @@ class Attack(Enum):
     MEDIAN = 3
     RESIZING = 4
     JPEG = 5
+
+
+w = np.genfromtxt('csf.csv', delimiter=',')
+
+
+def wpsnr(img1, img2):
+    img1 = np.float32(img1) / 255.0
+    img2 = np.float32(img2) / 255.0
+    difference = img1 - img2
+    same = not np.any(difference)
+    if same is True:
+        return 9999999
+    ew = convolve2d(difference, np.rot90(w, 2), mode='valid')
+    decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
+    return decibels
 
 
 def attack_blur(img: np.ndarray, sigma) -> np.ndarray:
@@ -104,7 +122,7 @@ demo_attacks = [
 ]
 
 
-def apply_attack_queue(im: np.ndarray, l: list) -> np.ndarray:
+def apply_attack_queue(im: np.ndarray, l: list, res_queue: Queue, id=None) -> np.ndarray:
     """
     Apply the given list of attacks to the given image and return the attacked image.
     demo_attacks = [
@@ -135,5 +153,13 @@ def apply_attack_queue(im: np.ndarray, l: list) -> np.ndarray:
             attacked = attack_resizing(attacked, a_params["scale"])
         else:
             raise KeyError(f"invalid attack in dict: {a_type}")
+
+    if res_queue is not None:
+        t_start = datetime.datetime.now()
+        w = wpsnr(im, attacked)
+        # TODO add similarity
+        t_end = datetime.datetime.now()
+        print((t_end - t_start).seconds)
+        res_queue.put({id, w})
 
     return attacked

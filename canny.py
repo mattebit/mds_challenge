@@ -46,6 +46,31 @@ def select_best_regions(edge_map, block_size, threshold):
     
     return regions
 
+def extraction(image_wm, original, U_wm, V_wm, alpha=5.0):
+    edges = cv2.Canny(original, low_threshold, high_threshold)
+    regions = select_best_regions(edges, block_size=64, threshold=66)
+
+    watermarks = []
+    for region in regions:
+        x, y, block_h, block_w = region
+        block_wm = image_wm[x:x+block_h, y:y+block_w]
+
+        LL_w, (LH_w, HL_w, HH_w) = pywt.dwt2(block_wm, 'haar')
+        U_w, S_w, V_w = svd(LL_w)
+
+        LL, (LH, HL, HH) = pywt.dwt2(original[x:x+block_h, y:y+block_w], 'haar')
+        U, S, V = svd(LL)
+
+        S_extracted = np.zeros(32)
+        for i in range(32):
+            S_extracted[i] = (S_w[i] - S[i]) / alpha
+        
+        watermark = np.dot(U_wm, np.dot(np.diag(S_extracted), V_wm))
+        watermarks.append(watermark)
+
+    return watermarks
+
+
 image = cv2.imread('lena_grey.bmp', 0)
 watermark = np.load('findbrivateknowledge.npy')
 watermark = cv2.resize(watermark, (32, 32))
@@ -58,7 +83,6 @@ regions = select_best_regions(edges, block_size=64, threshold=66)
 
 watermarked_image = image.copy()
 for region in regions:
-    print(region)
     x, y, block_h, block_w = region
     block = image[x:x+block_h, y:y+block_w]
 
@@ -69,11 +93,18 @@ for region in regions:
     
     watermarked_image[x:x+block_h, y:y+block_w] = block_prime
 
+U_wm, S_wm, V_wm = svd(watermark)
+watermarks = extraction(watermarked_image, image, U_wm, V_wm)
+
 # Save or display the watermarked image
 # cv2.imwrite('watermarked_image.png', np.uint8(watermarked_image))
 
 #cv2.imshow('Edges', edges)
 cv2.imshow('Watermarked Image', np.uint8(watermarked_image))
 print(f'WPSNR: {wpsnr(image, watermarked_image)}')
+
+for i, w in enumerate(watermarks):
+    print("Sim", i, ":", similarity(watermark, w))
+
 cv2.waitKey(0)
 cv2.destroyAllWindows()

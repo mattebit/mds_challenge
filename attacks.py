@@ -1,21 +1,27 @@
-import datetime
 import os
+import uuid
+from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from math import sqrt
+from typing import Tuple
 
+import cv2
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
+from scipy.linalg import svd
 from scipy.ndimage import gaussian_filter
 from scipy.signal import medfilt, convolve2d
-from scipy.linalg import svd
 from skimage.transform import rescale
-import cv2
-from canny import extraction, similarity
-from copy import deepcopy
-from multiprocessing import Process, Queue
-from concurrent.futures import ProcessPoolExecutor
-import pprint
+
+from canny import detection
+
+w = np.genfromtxt('csf.csv', delimiter=',')
+
+SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
+CACHE_DIR = ".cache"
+CACHE_PATH = os.path.join(SCRIPT_PATH, CACHE_DIR)
+ORIGINAL_IMG_PATH = "lena_grey.bmp"
 
 
 def show(*args: np.ndarray):
@@ -41,9 +47,6 @@ class Attack(Enum):
     MEDIAN = 3
     RESIZING = 4
     JPEG = 5
-
-
-w = np.genfromtxt('csf.csv', delimiter=',')
 
 
 def wpsnr(img1, img2):
@@ -129,20 +132,23 @@ demo_attacks = [
 ]
 
 
-def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.ndarray:
+def apply_attack_queue(im: str,
+                       l: list,
+                       detection_function=None) -> Tuple[np.ndarray, int, float]:
     """
     Apply the given list of attacks to the given image and return the attacked image.
+    The list of attacks should be of this form:
     demo_attacks = [
     {
-        "attack": Attack.BLUR,
+        "attack": Attack.BLUR,  # Specify which attack to apply
         "params": {
-            "sigma": [1,1]
+            "sigma": [1,1]  # Specify the parameters
         }
     }
     ]
     """
-    original_image = cv2.imread(im, 0)
-    attacking: np.ndarray = original_image
+    attacking: np.ndarray = cv2.imread(im, 0)
+    contains_w, wpsnr = None, None
 
     for a in l:
         a_type: Attack = a["attack"]
@@ -164,87 +170,88 @@ def apply_attack_queue(im: str, l: list, res_queue: Queue, query_id=None) -> np.
         else:
             raise KeyError(f"invalid attack in dict: {a_type}")
     print("Attack applied: ", l)
-    if res_queue is not None:
-        t_start = datetime.datetime.now()
-        wpsnr_value = wpsnr(original_image, attacking)
-        # TODO add similarity
-        t_end = datetime.datetime.now()
-        # print((t_end - t_start).seconds)
-        res_queue.put(tuple([query_id, wpsnr_value]), block=True)
-
-    return attacking
+    if detection_function is not None:
+        detection_attacked_path = os.path.join(CACHE_PATH, f"attacked_{uuid.uuid4()}.bmp")
+        cv2.imwrite(detection_attacked_path, attacking)
+        contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
+    return attacking, contains_w, wpsnr
 
 
 if __name__ == "__main__":
-    img = "watermarked_image.bmp"
-    original = cv2.imread('lena_grey.bmp', 0)
+    attacks = [[
+        {
+            "attack": Attack.BLUR,
+            "params": {
+                "sigma": [1, 1]
+            }
+        },
+    ], [
+        {
+            "attack": Attack.JPEG,
+            "params": {
+                "QF": 20
+            }
+        }
+    ], [
+        {
+            "attack": Attack.AWGN,
+            "params": {
+                "std": 10,
+                "seed": 0,
+                "mean": 0
+            }
+        }
+    ], [
+        {
+            "attack": Attack.MEDIAN,
+            "params": {
+                "kernel_size": 3
+            }
+        }
+    ], [
+        {
+            "attack": Attack.RESIZING,
+            "params": {
+                "scale": 0.2
+            }
+        }
+    ],
+        [
+            {
+                "attack": Attack.SHARPEN,
+                "params": {
+                    "sigma": 1,
+                    "alpha": 1
+                }
+            }
+
+        ]]
+
+    watermarked_img_path = 'watermarked_image.bmp'
+    watermarked_img = cv2.imread(watermarked_img_path, 0)
+    original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
     watermark = np.load('findbrivateknowledge.npy')
     watermark = cv2.resize(watermark, (32, 32))
-    U_wm, S_wm, V_wm = svd(watermark)
-    attacks = [[
-                   {
-                       "attack": Attack.BLUR,
-                       "params": {
-                           "sigma": [1, 1]
-                       }
-                   },
-               ], [
-                   {
-                       "attack": Attack.JPEG,
-                       "params": {
-                           "QF": 20
-                       }
-                   }
-               ], [
-                   {
-                       "attack": Attack.AWGN,
-                       "params": {
-                           "std": 10,
-                           "seed": 0,
-                           "mean": 0
-                       }
-                   }
-               ],[
-                     {
-                          "attack": Attack.MEDIAN,
-                          "params": {
-                            "kernel_size": 3
-                          }
-                     }
-                ], [
-                     {
-                          "attack": Attack.RESIZING,
-                          "params": {
-                            "scale": 0.2
-                          }
-                     }
-               ],
-               [
-                     {
-                          "attack": Attack.SHARPEN,
-                          "params": {
-                            "sigma": 1,
-                            "alpha": 1
-                          }
-                     }
-                
-               ]]
-    res_queue = Queue()
-    img = 'watermarked_image.bmp'
-    loaded_img = cv2.imread(img, 0)
-    original_img = cv2.imread("lena_grey.bmp", 0)
 
+    # Execute attacks
     with ProcessPoolExecutor() as executor:
-        futures = [executor.submit(apply_attack_queue, img, attack, None, i) for i, attack in enumerate(attacks)]
+        futures = [
+            executor.submit(apply_attack_queue, watermarked_img_path, attack, detection)
+            for i, attack in enumerate(attacks)
+        ]
+
     results = []
     for future in futures:
         results.append(future.result())
 
-    watermark = np.load('findbrivateknowledge.npy')
-    watermark = cv2.resize(watermark, (32, 32))
     U_wm, S_wm, V_wm = svd(watermark)
+    # np.savetxt("U_wm", U_wm)
+    # np.savetxt("S_wm", S_wm)
+    # np.savetxt("V_wm", V_wm)
+
     for i, result in enumerate(results):
-        watermarks = extraction(result, original_img, U_wm, V_wm)
-        watermarks_values = [similarity(watermark, wm) for wm in watermarks]
-        print(watermarks_values, wpsnr(loaded_img, result), attacks[i][0]["attack"])
-    
+        res_attacked, res_contains_w, res_wpsnr = result
+        print(f"Contains w?: {res_contains_w}, WPSNR: {res_wpsnr}")
+        # watermarks = extraction(res_attacked, original_img, U_wm, V_wm)
+        # watermarks_values = [similarity(watermark, wm) for wm in watermarks]
+        # print(watermarks_values, wpsnr(watermarked_img, res_attacked), attacks[i][0]["attack"])

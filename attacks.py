@@ -88,12 +88,6 @@ def attack_sharpen(img: np.ndarray, sigma: float, alpha: float) -> np.ndarray:
 def attack_median(img: np.ndarray, kernel_size: int) -> np.ndarray:
     """
     best value kernel_size = 3, higher values cause lower wpsnr linearly
-    Args:
-        img:
-        kernel_size:
-
-    Returns:
-
     """
     attacked = medfilt(img, kernel_size)
     return attacked
@@ -108,7 +102,7 @@ def attack_resizing(img: np.ndarray, scale: float) -> np.ndarray:
 
 
 def attack_jpeg(img: np.ndarray, QF: int):
-    img = Image.fromarray(img)
+    img = Image.fromarray(img, mode="L")
     bytes_io = io.BytesIO()
     img.save(bytes_io, "JPEG", quality=QF)
     attacked = Image.open(bytes_io)
@@ -116,34 +110,9 @@ def attack_jpeg(img: np.ndarray, QF: int):
     return attacked
 
 
-a_map = {
-    Attack.BLUR: attack_blur,
-    Attack.MEDIAN: attack_median,
-    Attack.JPEG: attack_jpeg,
-    Attack.AWGN: attack_AWGN,
-    Attack.SHARPEN: attack_sharpen,
-    Attack.RESIZING: attack_resizing
-}
-
-demo_attacks = [
-    {
-        "attack": Attack.BLUR,
-        "params": {
-            "sigma": [1, 1]
-        }
-    },
-    {
-        "attack": Attack.JPEG,
-        "params": {
-            "QF": 20
-        }
-    }
-]
-
-
 def apply_attack_queue(im: str,
                        l: list,
-                       detection_function=None) -> Tuple[np.ndarray, int, float]:
+                       detection_function=None) -> Tuple[np.ndarray, int, float, list]:
     """
     Apply the given list of attacks to the given image and return the attacked image.
     The list of attacks should be of this form:
@@ -155,6 +124,13 @@ def apply_attack_queue(im: str,
         }
     }
     ]
+    If the detection function is passed, it is ran and the output will be returned by this function
+    Returns:
+        A tuple containing:
+        - The attacked image
+        - An integer indicating if the watermark has been found by the detection function
+        - The wpsnr value, if the detection function is passed
+        - The attack
     """
     attacking: np.ndarray = cv2.imread(im, 0)
     contains_w, wpsnr = None, None
@@ -183,6 +159,7 @@ def apply_attack_queue(im: str,
         detection_attacked_path = os.path.join(CACHE_PATH, f"attacked_{uuid.uuid4()}.bmp")
         cv2.imwrite(detection_attacked_path, attacking)
         contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
+        os.remove(detection_attacked_path)
         if contains_w == 0:  # TODO remove
             print(f"Contains w?: {contains_w}, WPSNR: {wpsnr}. Attack: {l}")
     else:
@@ -224,7 +201,8 @@ def prepare_attacks():
             for j in range(30, 120, 10):
                 res.append([awgn(i, j, 0.0)])
 
-    if False:
+    # Probably broken
+    if False:  # NOT USE
         for i in range(1, 100):
             res.append([resizing(i / 100)])
 
@@ -232,6 +210,11 @@ def prepare_attacks():
 
 
 def prepare_joint_attacks():
+    """
+    Used to prepare a list of attacks,
+    Returns:
+
+    """
     blur = lambda x, y: {"attack": Attack.BLUR, "params": {"sigma": [x, y]}}
     median = lambda x: {"attack": Attack.MEDIAN, "params": {"kernel_size": x}}
     jpeg = lambda x: {"attack": Attack.JPEG, "params": {"QF": x}}
@@ -269,7 +252,7 @@ if __name__ == "__main__":
         [{'attack': Attack.SHARPEN, 'params': {'sigma': 1, 'alpha': 1}}],
         [{'attack': Attack.SHARPEN, 'params': {'sigma': 0.71, 'alpha': 1}}],
         [{"attack": Attack.AWGN, "params": {"std": 14, "seed": 101, "mean": 0}},
-        {"attack": Attack.JPEG, "params": {"QF": 5}}],
+         {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
 
     # attacks = prepare_attacks()

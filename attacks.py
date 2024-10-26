@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import uuid
 from concurrent.futures import ProcessPoolExecutor
@@ -108,11 +109,10 @@ def attack_resizing(img: np.ndarray, scale: float) -> np.ndarray:
 
 def attack_jpeg(img: np.ndarray, QF: int):
     img = Image.fromarray(img)
-    tmp_path = os.path.join(CACHE_DIR, str(uuid.uuid4()) + ".jpg")
-    img.save(tmp_path, "JPEG", quality=QF)
-    attacked = Image.open(tmp_path)
+    bytes_io = io.BytesIO()
+    img.save(bytes_io, "JPEG", quality=QF)
+    attacked = Image.open(bytes_io)
     attacked = np.asarray(attacked, dtype=np.uint8)
-    os.remove(tmp_path)
     return attacked
 
 
@@ -258,6 +258,8 @@ def prepare_joint_attacks():
 
 if __name__ == "__main__":
     # Best starting value for attacks
+    if not os.path.isdir(CACHE_PATH):
+        os.mkdir(CACHE_PATH)
     attacks = [
         [{"attack": Attack.BLUR, "params": {"sigma": [0.5, 0.5]}}, ],
         [{"attack": Attack.JPEG, "params": {"QF": 5}}],
@@ -265,7 +267,9 @@ if __name__ == "__main__":
         [{"attack": Attack.MEDIAN, "params": {"kernel_size": 3}}],
         [{"attack": Attack.RESIZING, "params": {"scale": 1}}],
         [{'attack': Attack.SHARPEN, 'params': {'sigma': 1, 'alpha': 1}}],
-        [{'attack': Attack.SHARPEN, 'params': {'sigma': 0.71, 'alpha': 1}}]
+        [{'attack': Attack.SHARPEN, 'params': {'sigma': 0.71, 'alpha': 1}}],
+        [{"attack": Attack.AWGN, "params": {"std": 14, "seed": 101, "mean": 0}},
+        {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
 
     # attacks = prepare_attacks()

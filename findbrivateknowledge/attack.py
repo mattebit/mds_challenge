@@ -138,7 +138,7 @@ def apply_attack_queue(im: str,
             raise KeyError(f"invalid attack in dict: {a_type}")
 
     if detection_function is not None:
-        detection_attacked_path = os.path.join(CACHE_PATH, f"attacked_{uuid.uuid4()}.png")
+        detection_attacked_path = os.path.join(CACHE_PATH, f"attacked_{uuid.uuid4()}.bmp")
         cv2.imwrite(detection_attacked_path, attacking)
         contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
         os.remove(detection_attacked_path)

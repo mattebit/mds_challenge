@@ -1,0 +1,21 @@
+package-mode = false
+[tool.poetry]
+name = "watermarking_project"
+version = "0.1.0"
+description = "A watermarking project using DWT, QR, and SVD for embedding a watermark into a grayscale image."
+authors = ["Your Name <youremail@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "^1.21.0"
+matplotlib = "^3.4.0"
+pywavelets = "^1.1.1"
+scipy = "^1.7.0"
+opencv-python = "^4.10"
+scikit-image = "^0.24.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+

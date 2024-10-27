@@ -81,7 +81,8 @@ def extraction(image_wm, original):
         LL_w, (LH_w, HL_w, HH_w) = pywt.dwt2(block_wm, 'haar')
         U_w, S_w, V_w = svd(LL_w)
 
-        LL, (LH, HL, HH) = pywt.dwt2(original[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE], 'haar')
+        LL, (LH, HL, HH) = pywt.dwt2(
+            original[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE], 'haar')
         U, S, V = svd(LL)
 
         S_extracted = np.zeros(32)
@@ -166,10 +167,15 @@ def extraction(image_wm, original):
     return watermarks
 
 
-def detection(original_img_path, watermarked_img_path, attacked_img_path):
-    original_img = cv2.imread(original_img_path, 0)
-    watermarked_img = cv2.imread(watermarked_img_path, 0)
-    attacked_img = cv2.imread(attacked_img_path, 0)
+def detection(input1, input2, input3):
+    """
+    input1: original image
+    input2: watermarked image
+    input3: attacked image
+    """
+    original_img = cv2.imread(input1, 0)
+    watermarked_img = cv2.imread(input2, 0)
+    attacked_img = cv2.imread(input3, 0)
 
     original_watermarks = extraction(watermarked_img, original_img)
 
@@ -186,11 +192,12 @@ def detection(original_img_path, watermarked_img_path, attacked_img_path):
     detected = 1 if max_sim > THRESHOLD else 0
     return detected, wpsnr_res
 
+
 if __name__ == "__main__":
     original_image = 'lena_grey.bmp'
     watermarked_image = 'findbrivateknowledge_embedded.bmp'
     attacked_image = 'results/findbrivateknowledge_attacked0.bmp'
 
-    detected, wpsnr_value = detection(original_image, watermarked_image, attacked_image)
+    detected, wpsnr_value = detection(
+        original_image, watermarked_image, attacked_image)
     print("Detected:", detected, " with WPSNR:", wpsnr_value)
-

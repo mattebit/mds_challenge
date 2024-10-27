@@ -67,9 +67,13 @@ def select_best_regions(edge_map):
     return [(i, j) for i, j, _ in selected_regions]
 
 
-def embedding(file_name, watermark_name):
-    image = cv2.imread(file_name, 0)
-    watermark = np.load(watermark_name)
+def embedding(input1, input2):
+    """
+    input1: original image file name
+    input2: watermark file name
+    """
+    image = cv2.imread(input1, 0)
+    watermark = np.load(input2)
 
     watermark = cv2.resize(watermark, (32, 32))
 

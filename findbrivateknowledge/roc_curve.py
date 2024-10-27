@@ -1,18 +1,18 @@
-import cv2
-import numpy as np
-import pywt
-import time
 import os
 import random
-from scipy.linalg import svd
-from scipy.signal import convolve2d
-from scipy.ndimage import gaussian_filter
-from math import sqrt
+import time
+
+import cv2
+import numpy as np
 from matplotlib import pyplot as plt
+from scipy.ndimage import gaussian_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import medfilt
 from sklearn.metrics import roc_curve, auc
-import embedding, detection
+
+import detection
+import embedding
+
 
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
@@ -24,15 +24,18 @@ def similarity(X, X_star):
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
 
+
 def jpeg_compression(img, QF):
     cv2.imwrite('tmp.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), QF])
     attacked = cv2.imread('tmp.jpg', 0)
     os.remove('tmp.jpg')
     return attacked
 
+
 def blur(img, sigma):
     attacked = gaussian_filter(img, sigma)
     return attacked
+
 
 def awgn(img, std, seed):
     mean = 0.0
@@ -41,44 +44,49 @@ def awgn(img, std, seed):
     attacked = np.clip(attacked, 0, 255)
     return attacked
 
+
 def sharpening(img, sigma, alpha):
     filter_blurred_f = gaussian_filter(img, sigma)
     attacked = img + alpha * (img - filter_blurred_f)
     return attacked
 
+
 def median(img, kernel_size):
     attacked = medfilt(img, kernel_size)
     return attacked
 
+
 def resizing(img, scale):
-  from skimage.transform import rescale
-  x, y = img.shape
-  attacked = rescale(img, scale, preserve_range=True)
-  attacked = rescale(attacked, 1 / scale, preserve_range=True)
-  attacked = cv2.resize(attacked, (x, y))
-  return attacked
+    from skimage.transform import rescale
+    x, y = img.shape
+    attacked = rescale(img, scale, preserve_range=True)
+    attacked = rescale(attacked, 1 / scale, preserve_range=True)
+    attacked = cv2.resize(attacked, (x, y))
+    return attacked
+
 
 def random_attack(img):
-  i = random.randint(1,7)
-  if i==1:
-    attacked = awgn(img, 3.0, 123)
-  elif i==2:
-    attacked = blur(img, [3, 3])
-  elif i==3:
-    attacked = sharpening(img, 1, 1)
-  elif i==4:
-    attacked = median(img, [3, 3])
-  elif i==5:
-    attacked = resizing(img, 0.8)
-  elif i==6:
-    attacked = jpeg_compression(img, 75)
-  elif i ==7:
-     attacked = img
-  return attacked, i
+    i = random.randint(1, 7)
+    if i == 1:
+        attacked = awgn(img, 3.0, 123)
+    elif i == 2:
+        attacked = blur(img, [3, 3])
+    elif i == 3:
+        attacked = sharpening(img, 1, 1)
+    elif i == 4:
+        attacked = median(img, [3, 3])
+    elif i == 5:
+        attacked = resizing(img, 0.8)
+    elif i == 6:
+        attacked = jpeg_compression(img, 75)
+    elif i == 7:
+        attacked = img
+    return attacked, i
+
 
 def compute_roc_curve():
     start = time.time()
-    
+
     sample_images = []
     for filename in os.listdir('sample_images'):
         path_tmp = os.path.join('sample_images', filename)
@@ -107,7 +115,7 @@ def compute_roc_curve():
 
             attacked_image, atk = random_attack(watermarked_image)
             wm_atk = detection.extraction(attacked_image, original_image)
-            
+
             max_sim = None
             max_wm = None
             for w in wm_atk:
@@ -118,13 +126,13 @@ def compute_roc_curve():
 
             scores.append(max_sim)
             labels.append(1)
-            
+
             scores.append(similarity(fakemark, max_wm))
             labels.append(0)
             sample += 1
 
-    #print('Scores:', scores)
-    #print('Labels:', labels)
+    # print('Scores:', scores)
+    # print('Labels:', labels)
 
     fpr, tpr, tau = roc_curve(np.asarray(labels), np.asarray(scores), drop_intermediate=False)
     roc_auc = auc(fpr, tpr)
@@ -153,4 +161,6 @@ def compute_roc_curve():
     end = time.time()
     print('[COMPUTE ROC] Time: %0.2f seconds' % (end - start))
 
-compute_roc_curve()
+
+if __name__ == "__main__":
+    compute_roc_curve()

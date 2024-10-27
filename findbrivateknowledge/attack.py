@@ -260,7 +260,7 @@ if __name__ == "__main__":
         [{"attack": Attack.AWGN, "params": {"std": 14, "seed": 101, "mean": 0}},
          {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
-    # attacks = prepare_attacks()
+    attacks = prepare_attacks(use_all=True)
     # attacks = prepare_joint_attacks()
 
     watermarked_img_path = 'watermarked_image.bmp'

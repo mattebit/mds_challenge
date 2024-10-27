@@ -1,5 +1,6 @@
 import io
 from math import sqrt
+
 import cv2
 import numpy as np
 import pywt
@@ -10,19 +11,21 @@ BLOCK_SIZE = 64
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 150
 ALPHA = 5.0
-THRESHOLD=0.81
+THRESHOLD = 0.81
+
 
 def wpsnr(img1, img2):
-    img1 = np.float32(img1)/255.0
-    img2 = np.float32(img2)/255.0
-    difference = img1-img2
+    img1 = np.float32(img1) / 255.0
+    img2 = np.float32(img2) / 255.0
+    difference = img1 - img2
     same = not np.any(difference)
     if same is True:
         return 9999999
     w = np.genfromtxt('csf.csv', delimiter=',')
-    ew = convolve2d(difference, np.rot90(w,2), mode='valid')
-    decibels = 20.0*np.log10(1.0/sqrt(np.mean(np.mean(ew**2))))
+    ew = convolve2d(difference, np.rot90(w, 2), mode='valid')
+    decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
+
 
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
@@ -34,34 +37,37 @@ def similarity(X, X_star):
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
 
+
 def embed_watermark_svd(subband, watermark):
     U, S, V = svd(subband)
     Uw, Sw, Vw = svd(watermark)
 
     S_watermarked = S + ALPHA * Sw[:len(S)]
-    
+
     watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
     return watermarked_subband
+
 
 def select_best_regions(edge_map):
     h, w = edge_map.shape
     regions = []
-    
+
     for i in range(1, h - BLOCK_SIZE + 1, 8):
         for j in range(1, w - BLOCK_SIZE + 1, 8):
-            block = edge_map[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
+            block = edge_map[i:i + BLOCK_SIZE, j:j + BLOCK_SIZE]
             edge_density = np.mean(block)
-            
+
             regions.append((i, j, edge_density))
 
     regions = sorted(regions, key=lambda x: x[2], reverse=True)
-    
+
     selected_regions = []
     selected_regions.append(regions[0])
     selected_regions.append(regions[len(regions) - 1])
     selected_regions.append(regions[int(len(regions) // 2)])
-    
+
     return [(i, j) for i, j, _ in selected_regions]
+
 
 def extraction(image_wm, original):
     edges = cv2.Canny(original, LOW_THRESHOLD, HIGH_THRESHOLD)
@@ -179,4 +185,3 @@ def detection(original_img_path, watermarked_img_path, attacked_img_path):
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
     detected = 1 if max_sim > THRESHOLD else 0
     return detected, wpsnr_res
-

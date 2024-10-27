@@ -185,3 +185,12 @@ def detection(original_img_path, watermarked_img_path, attacked_img_path):
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
     detected = 1 if max_sim > THRESHOLD else 0
     return detected, wpsnr_res
+
+if __name__ == "__main__":
+    original_image = 'lena_grey.bmp'
+    watermarked_image = 'watermarked_image.bmp'
+    attacked_image = 'attacked_image.bmp'
+
+    detected, wpsnr = detection(original_image, watermarked_image, attacked_image)
+    print("Detected:", detected, " with WPSNR:", wpsnr)
+

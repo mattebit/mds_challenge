@@ -14,6 +14,13 @@ The attacking methodology is based on the following steps:
    - To improve performances multiprocessing is used in the `findbrivateknowledge_attack.py` file, where a `ProcessPoolExecutor` is used to launch the functions and gather the results asynchronously.
 3. the `apply_attacks` function will perform the attacks on the image and return the resulting image, the result of the detection function on the attacked image, the attacked image's WPSNR and the attack parameters used;
 
+## Pre-requisites
+Before running the scripts, run the following command to install the required packages:
+```bash
+pip3 install -r requirements.txt
+```
+(The usage of a virtual environment is recommended)
+
 ## Demo usage
 To run the demo, simply run the following command:
 ```bash

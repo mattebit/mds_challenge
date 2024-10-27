@@ -10,7 +10,7 @@ BLOCK_SIZE = 64
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 150
 ALPHA = 5.0
-THRESHOLD=0.7
+THRESHOLD=0.81
 
 def wpsnr(img1, img2):
     img1 = np.float32(img1)/255.0

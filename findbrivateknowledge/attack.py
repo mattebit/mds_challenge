@@ -92,9 +92,9 @@ def attack_jpeg(img: np.ndarray, QF: int):
     return attacked
 
 
-def apply_attack_queue(im: str,
-                       attack_list: list,
-                       detection_function=None) -> Tuple[np.ndarray, int, float, list]:
+def apply_attacks(im: str,
+                  attack_list: list,
+                  detection_function=None) -> Tuple[np.ndarray, int, float, list]:
     """
     Apply the given list of attacks to the given image and return the attacked image.
     The list of attacks should be of this form:
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     # Execute attacks
     with ProcessPoolExecutor() as executor:
         futures = [
-            executor.submit(apply_attack_queue, watermarked_img_path, attack, detection)
+            executor.submit(apply_attacks, watermarked_img_path, attack, detection)
             for i, attack in enumerate(attacks)
         ]
 

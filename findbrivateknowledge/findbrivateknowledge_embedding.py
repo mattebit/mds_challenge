@@ -94,4 +94,4 @@ def embedding(file_name, watermark_name):
 
 if __name__ == "__main__":
     watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
-    cv2.imwrite('watermarked_image.bmp', np.uint8(watermarked_image))
+    cv2.imwrite('findbrivateknowledge_embedded.bmp', np.uint8(watermarked_image))

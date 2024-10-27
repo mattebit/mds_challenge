@@ -188,7 +188,7 @@ def detection(original_img_path, watermarked_img_path, attacked_img_path):
 
 if __name__ == "__main__":
     original_image = 'lena_grey.bmp'
-    watermarked_image = 'watermarked_image.bmp'
+    watermarked_image = 'findbrivateknowledge_embedded.bmp'
     attacked_image = 'attacked_image.bmp'
 
     detected, wpsnr = detection(original_image, watermarked_image, attacked_image)

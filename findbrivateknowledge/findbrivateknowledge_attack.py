@@ -13,8 +13,9 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter
 from scipy.signal import medfilt, convolve2d
 from skimage.transform import rescale
+import logging
 
-from detection import detection
+from findbrivateknowledge_detection import detection
 
 w = np.genfromtxt('csf.csv', delimiter=',')
 
@@ -142,7 +143,7 @@ def apply_attacks(im: str,
         cv2.imwrite(detection_attacked_path, attacking)
         contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
         os.remove(detection_attacked_path)
-        if contains_w == 0:
+        if contains_w == 0 and logging.getLogger().level == logging.DEBUG:
             print(f"Contains w?: {contains_w}, WPSNR: {wpsnr}. Attack: {attack_list}")
     else:
         print("Attack applied: ", attack_list)
@@ -244,11 +245,12 @@ def prepare_joint_attacks():
     return res
 
 
-if __name__ == "__main__":
+def main(watermarked_img_path = 'watermarked_image.bmp'):
     # Best starting value for attacks
     if not os.path.isdir(CACHE_PATH):
         os.mkdir(CACHE_PATH)
 
+    # sample attack vector
     attacks = [
         [{"attack": Attack.BLUR, "params": {"sigma": [0.5, 0.5]}}, ],
         [{"attack": Attack.JPEG, "params": {"QF": 5}}],
@@ -263,7 +265,6 @@ if __name__ == "__main__":
     attacks = prepare_attacks(use_all=True)
     # attacks = prepare_joint_attacks()
 
-    watermarked_img_path = 'watermarked_image.bmp'
     watermarked_img = cv2.imread(watermarked_img_path, 0)
     original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
     watermark = np.load('findbrivateknowledge.npy')
@@ -297,3 +298,6 @@ if __name__ == "__main__":
 
     print(f"Time taken: {(time_end - time_start).seconds} seconds")
     print(f"max wpsnr: {max_wpsnr}, attack: {max_a}")
+
+if __name__ == "__main__":
+    main()

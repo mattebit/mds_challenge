@@ -160,7 +160,7 @@ def extraction(image_wm, original):
     return watermarks
 
 
-def detection(original_img_path: str, watermarked_img_path: str, attacked_img_path: str):
+def detection(original_img_path, watermarked_img_path, attacked_img_path):
     original_img = cv2.imread(original_img_path, 0)
     watermarked_img = cv2.imread(watermarked_img_path, 0)
     attacked_img = cv2.imread(attacked_img_path, 0)
@@ -180,8 +180,3 @@ def detection(original_img_path: str, watermarked_img_path: str, attacked_img_pa
     detected = 1 if max_sim > THRESHOLD else 0
     return detected, wpsnr_res
 
-if __name__ == "__main__":
-    image = cv2.imread('lena_grey.bmp', 0)
-    watermark = np.load('findbrivateknowledge.npy')
-    
-    

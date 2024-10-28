@@ -19,6 +19,22 @@ def wpsnr(img1, img2):
     decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
 
+def similarity(X, X_star):
+    norm_X = np.sqrt(np.sum(np.multiply(X, X)))
+    norm_X_star = np.sqrt(np.sum(np.multiply(X_star, X_star)))
+
+    if norm_X == 0 or norm_X_star == 0:
+        return 0.0
+
+    s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
+    return s
+
+def jpeg_compression(img, QF):
+    cv2.imwrite('tmp.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), QF])
+    attacked = cv2.imread('tmp.jpg', 0)
+    os.remove('tmp.jpg')
+    return attacked
+
 if __name__ == "__main__":
     """ watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
     cv2.imwrite('findbrivateknowledge_embedded.bmp',
@@ -48,11 +64,15 @@ if __name__ == "__main__":
     np.save("random_bits.npy", random_bits)
     
     watermarked_fake = embedding('lena_grey.bmp', 'random_bits.npy')
-    cv2.imwrite('fake_embedded.bmp', np.uint8(watermarked_image))
-
-    print("1:", np.allclose(watermarked_image, watermarked_fake))
+    cv2.imwrite('fake_embedded.bmp', np.uint8(watermarked_fake))
 
     det1, wpsnr1 = detection('lena_grey.bmp', 'findbrivateknowledge_embedded.bmp', 'fake_embedded.bmp')
 
+    attacked = jpeg_compression(watermarked_image, 90)
+    cv2.imwrite('attacked.bmp', np.uint8(attacked))
+
+    det2, wpsnr2 = detection('lena_grey.bmp', 'findbrivateknowledge_embedded.bmp', 'attacked.bmp')
+
     print("Det 1:", det1, " - wpsnr:", wpsnr1)
+    print("Det 2:", det2, " - wpsnr:", wpsnr2)
     

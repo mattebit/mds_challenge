@@ -189,8 +189,6 @@ def detection(input1, input2, input3):
                 max_at = a_w
 
     mse = np.square(np.subtract(max_or[1:], max_at[1:])).mean()
-    print("Sim:", similarity(max_or[1:], max_at[1:]))
-    print("MSE:", mse)
 
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
     detected = 1 if max_sim > THRESHOLD and mse < 10**-4 else 0

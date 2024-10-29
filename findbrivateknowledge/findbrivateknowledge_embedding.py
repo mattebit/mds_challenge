@@ -35,13 +35,17 @@ def similarity(X, X_star):
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
 
+def to_scientific_notation(num, target_exponent):
+    num_str = f"{abs(num):.0f}"
+    formatted_str = f"{num_str[0]}.{num_str[1:]}e{target_exponent}"
+    return float(formatted_str) if num >= 0 else -float(formatted_str)
 
 def embed_watermark_svd(subband, watermark):
     U, S, V = svd(subband)
     Uw, Sw, Vw = svd(watermark)
 
-    if Sw[0] != 2.712932014465332031e+01:
-        return subband
+    for i in range (1, 31):
+        Sw[i] = abs(to_scientific_notation(int(hash(Uw[i].tobytes())), -6))
 
     S_watermarked = S + ALPHA * Sw
     

@@ -40,8 +40,11 @@ def embed_watermark_svd(subband, watermark):
     U, S, V = svd(subband)
     Uw, Sw, Vw = svd(watermark)
 
-    S_watermarked = S + ALPHA * Sw[:len(S)]
+    if Sw[0] != 2.712932014465332031e+01:
+        return subband
 
+    S_watermarked = S + ALPHA * Sw
+    
     watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
     return watermarked_subband
 

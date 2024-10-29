@@ -171,8 +171,6 @@ def detection(input1, input2, input3):
     attacked_watermarks = extraction(attacked_img, original_img)
 
     max_sim = None
-    max_or = None
-    max_at = None
     for o_w in original_watermarks:
         for a_w in attacked_watermarks:
             act_sim = similarity(o_w, a_w)
@@ -180,14 +178,9 @@ def detection(input1, input2, input3):
                 max_sim = act_sim
                 max_or = o_w
                 max_at = a_w
-
-    U_o, S_o, V_o = svd(max_or)
-    U_a, S_a, V_a = svd(max_at)
-    mse = np.mean((S_o - S_a) ** 2)
     
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
-    in_range = True if 0.0 < mse < 0.2 and wpsnr_res > THRESHOLD_W else False
-    detected = 1 if max_sim > THRESHOLD and not in_range else 0
+    detected = 1 if max_sim > THRESHOLD else 0
     return detected, wpsnr_res
 
 

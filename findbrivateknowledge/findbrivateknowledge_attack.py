@@ -268,7 +268,7 @@ def main(watermarked_img_path = 'watermarked_image.bmp'):
     watermarked_img = cv2.imread(watermarked_img_path, 0)
     original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
     watermark = np.load('findbrivateknowledge.npy')
-    watermark = cv2.resize(watermark, (32, 32))
+    watermark = np.reshape(watermark, (32, 32))
 
     time_start = datetime.datetime.now()
 

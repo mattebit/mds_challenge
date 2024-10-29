@@ -235,13 +235,13 @@ def detection(original_img_path: str,
 
 image = cv2.imread('lena_grey.bmp', 0)
 watermark = np.load('findbrivateknowledge.npy')
-watermark = cv2.resize(watermark, (32, 32))
+watermark = np.reshape(watermark, (32, 32))
 low_threshold = 50
 high_threshold = 150
 if __name__ == "__main__":
     image = cv2.imread('lena_grey.bmp', 0)
     watermark = np.load('findbrivateknowledge.npy')
-    watermark = cv2.resize(watermark, (32, 32))
+    watermark = np.reshape(watermark, (32, 32))
 
     edges = cv2.Canny(image, low_threshold, high_threshold)
 

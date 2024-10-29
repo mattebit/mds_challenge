@@ -27,7 +27,7 @@ def embed_redundant_watermark(image, watermark, alpha=0.1):
     dct_HL = fftpack.dct(fftpack.dct(HL.T, norm='ortho').T, norm='ortho')
     dct_HH = fftpack.dct(fftpack.dct(HH.T, norm='ortho').T, norm='ortho')
     
-    wm_resized = cv2.resize(watermark, (dct_HL.shape[1], dct_HL.shape[0]))
+    wm_resized = np.reshape(watermark, (dct_HL.shape[1], dct_HL.shape[0]))
     
     # Step 4: Embed different parts of the watermark into HL and HH DCT coefficients
     dct_HL_watermarked = dct_HL + alpha * wm_resized

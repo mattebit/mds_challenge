@@ -3,8 +3,10 @@ from math import sqrt
 import cv2
 import numpy as np
 import pywt
-from scipy.linalg import svd
+from numpy.linalg import svd
 from scipy.signal import convolve2d
+
+from mds_challenge.findbrivateknowledge.findbrivateknowledge_detection import watermark_to_bytes
 
 BLOCK_SIZE = 64
 LOW_THRESHOLD = 100
@@ -38,13 +40,15 @@ def similarity(X, X_star):
 
 def embed_watermark_svd(subband, watermark):
     U, S, V = svd(subband)
-    Uw, Sw, Vw = svd(watermark)
 
-    if Sw[0] != 2.712932014465332031e+01:
-        return subband
+    w_b = watermark_to_bytes(watermark)
 
-    S_watermarked = S + ALPHA * Sw
-    
+    Uw, Sw, Vw = svd(w_b)
+
+    S_watermarked = np.zeros(32)
+    for i in range(32):
+        S_watermarked[i] = S[i] + (ALPHA * Sw[i])
+
     watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
     return watermarked_subband
 
@@ -77,11 +81,9 @@ def embedding(input1, input2):
     """
     image = cv2.imread(input1, 0)
     watermark = np.load(input2)
-
-    watermark = cv2.resize(watermark, (32, 32))
+    watermark = np.reshape(watermark, (32, 32))
 
     edges = cv2.Canny(image, LOW_THRESHOLD, HIGH_THRESHOLD)
-
     regions = select_best_regions(edges)
 
     watermarked_image = image.copy()
@@ -95,7 +97,6 @@ def embedding(input1, input2):
         block_prime = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
 
         watermarked_image[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE] = block_prime
-
     return watermarked_image
 
 

@@ -1,5 +1,6 @@
 import datetime
 import io
+import logging
 import os
 import uuid
 from concurrent.futures import ProcessPoolExecutor
@@ -13,7 +14,6 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter
 from scipy.signal import medfilt, convolve2d
 from skimage.transform import rescale
-import logging
 
 from findbrivateknowledge_detection import detection
 
@@ -22,7 +22,7 @@ w = np.genfromtxt('csf.csv', delimiter=',')
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = ".cache"
 CACHE_PATH = os.path.join(SCRIPT_PATH, CACHE_DIR)
-ORIGINAL_IMG_PATH = "lena_grey.bmp"
+ORIGINAL_IMG_PATH = "sample_images/lena_grey.bmp"
 
 
 class Attack(Enum):
@@ -183,7 +183,7 @@ def prepare_attacks(
     res = []
 
     if use_all or use_blur:
-        for i in range(10, 150, 10):
+        for i in range(10, 500, 10):
             res.append([blur(i / 100, i / 100)])
 
     if use_all or use_median:
@@ -245,7 +245,7 @@ def prepare_joint_attacks():
     return res
 
 
-def main(watermarked_img_path = 'watermarked_image.bmp'):
+def main(watermarked_img_path='watermarked_image.bmp'):
     # Best starting value for attacks
     if not os.path.isdir(CACHE_PATH):
         os.mkdir(CACHE_PATH)
@@ -298,6 +298,7 @@ def main(watermarked_img_path = 'watermarked_image.bmp'):
 
     print(f"Time taken: {(time_end - time_start).seconds} seconds")
     print(f"max wpsnr: {max_wpsnr}, attack: {max_a}")
+
 
 if __name__ == "__main__":
     main()

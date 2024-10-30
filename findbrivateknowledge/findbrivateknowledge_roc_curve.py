@@ -163,7 +163,7 @@ def compute_roc_curve():
         with ProcessPoolExecutor() as executor:
             futures = [
                 executor.submit(step_custom, watermark, watermarked_image, original_image_read)
-                for i in range(2)
+                for i in range(10)
             ]
 
         results = []

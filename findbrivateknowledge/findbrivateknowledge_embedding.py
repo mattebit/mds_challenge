@@ -65,7 +65,14 @@ def embedding(input1, input2):
         LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
-    key = [(i, 2) for i in range(128)]
+    key = [(i+2, 0) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
+
+    key = [(i+2, 1) for i in range(128)]
     c = 0
     for k in key:
         x, y = k

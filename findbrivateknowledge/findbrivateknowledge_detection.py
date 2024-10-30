@@ -85,7 +85,7 @@ def extraction(image_wm, original):
         c += 1
 
     w_ex_2 = np.zeros(128)
-    key = [(i, 2) for i in range(128)]
+    key = [(1, i) for i in range(128)]
     # for i in range(128):
     #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
     c = 0
@@ -96,7 +96,7 @@ def extraction(image_wm, original):
         c += 1
 
     w_ex_3 = np.zeros(128)
-    key = [(1, i) for i in range(128)]
+    key = [(i+2, 0) for i in range(128)]
     # for i in range(128):
     #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
     c = 0
@@ -106,7 +106,18 @@ def extraction(image_wm, original):
         # LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
-    ex_avg = np.mean(np.array([w_ex, w_ex_2, w_ex_3]), axis=0)
+    w_ex_4 = np.zeros(128)
+    key = [(i+2, 1) for i in range(128)]
+    # for i in range(128):
+    #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
+    c = 0
+    for k in key:
+        x, y = k
+        w_ex_4[c] = (LL_w[x][y] - LL[x][y]) / ALPHA
+        # LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
+
+    ex_avg = np.mean(np.array([w_ex, w_ex_2, w_ex_3, w_ex_4]), axis=0)
     return ex_avg
 
 

@@ -21,7 +21,7 @@ w = np.genfromtxt('csf.csv', delimiter=',')
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = ".cache"
 CACHE_PATH = os.path.join(SCRIPT_PATH, CACHE_DIR)
-ORIGINAL_IMG_PATH = "sample_images/lena_grey.bmp"
+ORIGINAL_IMG_PATH = "lena_grey.bmp"
 
 
 class Attack(Enum):
@@ -186,7 +186,7 @@ def prepare_attacks(
             res.append([blur(i / 100, i / 100)])
 
     if use_all or use_median:
-        for i in range(1, 6, 2):
+        for i in range(1, 12, 2):
             res.append([median(i)])
 
     if use_all or use_jpeg:
@@ -262,6 +262,7 @@ def main(watermarked_img_path='watermarked_image.bmp'):
          {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
     attacks = prepare_attacks(use_all=True)
+    #attacks = prepare_attacks(use_all = False, use_median=True)
     # attacks = prepare_joint_attacks()
 
     # watermarked_img = cv2.imread(watermarked_img_path, 0)

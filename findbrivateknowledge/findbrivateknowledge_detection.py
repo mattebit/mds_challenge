@@ -7,13 +7,8 @@ from numpy.linalg import svd
 from scipy.ndimage import gaussian_filter
 from scipy.signal import convolve2d
 
-BLOCK_SIZE = 64
-THRESHOLD_W = 70
-LOW_THRESHOLD = 100
-HIGH_THRESHOLD = 150
 ALPHA = .4
-THRESHOLD = 0.83
-
+THRESHOLD = 0.8
 
 def wpsnr(img1, img2):
     img1 = np.float32(img1) / 255.0
@@ -27,7 +22,6 @@ def wpsnr(img1, img2):
     decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
 
-
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
     norm_X_star = np.sqrt(np.sum(np.multiply(X_star, X_star)))
@@ -37,7 +31,6 @@ def similarity(X, X_star):
 
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
-
 
 def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
     was_matrix = False
@@ -64,7 +57,6 @@ def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
 
     return w_b
 
-
 def extraction(image_wm, original):
     LL_w, (LH_w, HL_w, HH_w) = pywt.dwt2(image_wm, 'haar')
     U_w, S_w, V_w = svd(LL_w)
@@ -75,51 +67,38 @@ def extraction(image_wm, original):
     w_ex = np.zeros(128)
 
     key = [(0, i) for i in range(128)]
-    # for i in range(128):
-    #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
     c = 0
     for k in key:
         x, y = k
         w_ex[c] = (LL_w[x][y] - LL[x][y]) / ALPHA
-        # LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
     w_ex_2 = np.zeros(128)
-    key = [(1, i) for i in range(128)]
-    # for i in range(128):
-    #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
+    key = [(i, 255) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
         w_ex_2[c] = (LL_w[x][y] - LL[x][y]) / ALPHA
-        # LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
     w_ex_3 = np.zeros(128)
-    key = [(i+2, 0) for i in range(128)]
-    # for i in range(128):
-    #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
+    key = [(255 - i, 255) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
         w_ex_3[c] = (LL_w[x][y] - LL[x][y]) / ALPHA
-        # LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
     w_ex_4 = np.zeros(128)
-    key = [(i+2, 1) for i in range(128)]
-    # for i in range(128):
-    #    w_ex[i] = (LL_w[i][i] - LL[i][i]) / ALPHA
+    key = [(0, 255 - i) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
         w_ex_4[c] = (LL_w[x][y] - LL[x][y]) / ALPHA
-        # LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
     ex_avg = np.mean(np.array([w_ex, w_ex_2, w_ex_3, w_ex_4]), axis=0)
     return ex_avg
-
 
 def detection(input1, input2, input3):
     """
@@ -132,20 +111,13 @@ def detection(input1, input2, input3):
     attacked_img = cv2.imread(input3, 0)
 
     original_watermark_ex = extraction(watermarked_img, original_img)
-    # original_watermark = np.load("findbrivateknowledge.npy")
-    # original_watermark = watermark_to_bytes(original_watermark)
-    original_watermark = original_watermark_ex
 
     attacked_watermarks = extraction(attacked_img, original_img)
 
-    # print(f"similarity: {similarity(original_watermark, attacked_watermarks)}")
-    # print(f"similarity_ex: {similarity(original_watermark, original_watermark_ex)}")
-
-    sim = similarity(original_watermark, attacked_watermarks)
+    sim = similarity(original_watermark_ex, attacked_watermarks)
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
     detected = 1 if sim > THRESHOLD else 0
     return detected, wpsnr_res
-
 
 if __name__ == "__main__":
     original_image = 'lena_grey.bmp'
@@ -157,7 +129,7 @@ if __name__ == "__main__":
 
     print("wpsnr original, watermarked: ", wpsnr(a, b))
 
-    attacked_image_ = gaussian_filter(b, [.2, .2])
+    attacked_image_ = gaussian_filter(a, [.2, .2])
     cv2.imwrite(attacked_image, attacked_image_)
 
     detected, wpsnr_value = detection(

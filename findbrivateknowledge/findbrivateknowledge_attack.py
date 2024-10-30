@@ -245,11 +245,9 @@ def prepare_joint_attacks():
 
 
 def main(watermarked_img_path='watermarked_image.bmp'):
-    # Best starting value for attacks
     if not os.path.isdir(CACHE_PATH):
         os.mkdir(CACHE_PATH)
 
-    # sample attack vector
     attacks = [
         [{"attack": Attack.BLUR, "params": {"sigma": [0.5, 0.5]}}, ],
         [{"attack": Attack.JPEG, "params": {"QF": 5}}],
@@ -262,17 +260,9 @@ def main(watermarked_img_path='watermarked_image.bmp'):
          {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
     attacks = prepare_attacks(use_all=True)
-    #attacks = prepare_attacks(use_all = False, use_median=True)
-    # attacks = prepare_joint_attacks()
-
-    # watermarked_img = cv2.imread(watermarked_img_path, 0)
-    # original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
-    # watermark = np.load('findbrivateknowledge.npy')
-    # watermark = np.resize(watermark, (12, 12))
 
     time_start = datetime.datetime.now()
 
-    # Execute attacks
     with ProcessPoolExecutor() as executor:
         futures = [
             executor.submit(apply_attacks, watermarked_img_path, attack, detection)

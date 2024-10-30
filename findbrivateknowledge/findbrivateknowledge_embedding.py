@@ -5,13 +5,7 @@ import numpy as np
 import pywt
 from scipy.signal import convolve2d
 
-from mds_challenge.findbrivateknowledge.findbrivateknowledge_detection import watermark_to_bytes
-
-BLOCK_SIZE = 64
-LOW_THRESHOLD = 100
-HIGH_THRESHOLD = 150
 ALPHA = .4
-
 
 def wpsnr(img1, img2):
     img1 = np.float32(img1) / 255.0
@@ -25,7 +19,6 @@ def wpsnr(img1, img2):
     decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
 
-
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
     norm_X_star = np.sqrt(np.sum(np.multiply(X_star, X_star)))
@@ -36,6 +29,30 @@ def similarity(X, X_star):
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
 
+def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
+    was_matrix = False
+    if len(watermark) < 1023:
+        was_matrix = True
+        size = watermark.shape
+        watermark = watermark.flatten()
+
+    c = 1
+    act_b = ""
+    w_b = []
+    for b in watermark:
+        act_b += str(b)
+        if c == 8:
+            w_b.append(int(act_b, 2))
+            c = 0
+            act_b = ""
+        c += 1
+
+    w_b = np.array(w_b)
+
+    if was_matrix:
+        w_b = np.resize(np.array(w_b), (12, 12))
+
+    return w_b
 
 def embedding(input1, input2):
     """
@@ -47,7 +64,6 @@ def embedding(input1, input2):
     watermark = watermark_to_bytes(watermark)
 
     LL, (LH, HL, HH) = pywt.dwt2(image, 'haar')
-    # LL_prime = embed_watermark_svd(LL, watermark)
 
     LL_prime = LL.copy()
 
@@ -58,21 +74,21 @@ def embedding(input1, input2):
         LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
-    key = [(1, i) for i in range(128)]
+    key = [(i, 255) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
         LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
-    key = [(i+2, 0) for i in range(128)]
+    key = [(255 - i, 255) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
         LL_prime[x][y] += watermark[c] * ALPHA
         c += 1
 
-    key = [(i+2, 1) for i in range(128)]
+    key = [(0, 255 - i) for i in range(128)]
     c = 0
     for k in key:
         x, y = k
@@ -87,3 +103,6 @@ def embedding(input1, input2):
 if __name__ == "__main__":
     watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
     cv2.imwrite('findbrivateknowledge_embedded.bmp', np.uint8(watermarked_image))
+
+    lena = cv2.imread('lena_grey.bmp', 0)
+    print(wpsnr(lena, watermarked_image))

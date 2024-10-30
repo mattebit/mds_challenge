@@ -98,7 +98,7 @@ def random_attack(img):
 def step(watermark, watermarked_image, original_image):
     fakemark = np.random.uniform(0.0, 1.0, 1024)
     fakemark = np.uint8(np.rint(fakemark))
-    # fakemark = np.reshape(fakemark, (12, 12))
+
     fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
     fakemark = np.resize(fakemark, (12, 12))
 
@@ -120,18 +120,12 @@ def step_custom(watermark, watermarked_image, original_image):
     fakemark = np.random.uniform(0.0, 1.0, 1024)
     fakemark = np.uint8(np.rint(fakemark))
     fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
-    # fakemark_path = "fakemark.npy"
-    # np.save(fakemark_path, fakemark)
-    # fakemark = findbrivateknowledge_detection.extraction(fake_image, original_image)
 
     attacked_image, atk = random_attack(watermarked_image)
     wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
 
     w_sim = similarity(watermark, wm_atk)
     w_fake_sim = similarity(wm_atk, fakemark)
-
-    # print(f"Real sim: {w_sim}")
-    # print(f"fake sim: {w_fake_sim}")
 
     return [[w_sim, 1], [w_fake_sim, 0]]
 
@@ -153,7 +147,6 @@ def compute_roc_curve():
     for i in range(len(sample_images)):
         original_image = sample_images[i]
         watermarked_image = findbrivateknowledge_embedding.embedding(original_image, watermark_path)
-        # fake_image = findbrivateknowledge_embedding.embedding(original_image, fakemark_path)
 
         watermark = findbrivateknowledge_detection.extraction(watermarked_image, cv2.imread(original_image, 0))
         print(sample_images[i])

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from scipy.signal import convolve2d
 
-from findbrivateknowledge_detection import detection, extraction, watermark_to_bytes
+from findbrivateknowledge_detection import detection
 from findbrivateknowledge_embedding import embedding
 
 
@@ -41,6 +41,33 @@ def jpeg_compression(img, QF):
 
 
 if __name__ == "__main__":
+    ORIGINAL_IMAGE_PATH = "lena_grey.bmp"
+    WATERMARKED_IMAGE_PATH = "watermarked_image.bmp"
+    FAKE_IMAGE_PATH = "fake_embedded.bmp"
+    WATERMARK_PATH = "findbrivateknowledge.npy"
+    RANDOM_WATERMARK_PATH = "random_watermark.npy"
+    ATTACKED_IMAGE_PATH = "attacked.bmp"
+
+    watermarked_image = embedding(ORIGINAL_IMAGE_PATH, WATERMARK_PATH)
+    cv2.imwrite(WATERMARKED_IMAGE_PATH, watermarked_image)
+
+    random_watermark = np.random.uniform(0.0, 1.0, 1024)
+    random_watermark = np.uint8(np.rint(random_watermark))
+    np.save(RANDOM_WATERMARK_PATH, random_watermark)
+
+    fake_image = embedding(ORIGINAL_IMAGE_PATH, RANDOM_WATERMARK_PATH)
+    cv2.imwrite(FAKE_IMAGE_PATH, fake_image)
+
+    det1, wpsnr1 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, FAKE_IMAGE_PATH)
+    det2, wpsnr2 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, WATERMARKED_IMAGE_PATH)
+    attacked_image = jpeg_compression(watermarked_image, 20)
+    cv2.imwrite(ATTACKED_IMAGE_PATH, attacked_image)
+    det3, wpsnr3 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, ATTACKED_IMAGE_PATH)
+    print("Det 1:", det1, " - wpsnr:", wpsnr1)
+    print("Det 2:", det2, " - wpsnr:", wpsnr2)
+    print("Det 3:", det3, " - wpsnr:", wpsnr3)
+
+
     """ watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
     cv2.imwrite('findbrivateknowledge_embedded.bmp',
                 np.uint8(watermarked_image))
@@ -58,7 +85,7 @@ if __name__ == "__main__":
         cv2.imwrite(
             f'results/findbrivateknowledge_attacked{i}.bmp', np.uint8(res_attacked))
         ATTACK_STRING = "Watermark present:" if res_contains_w else "Watermark removed:"
-        print(ATTACK_STRING, res_wpsnr, a) """
+        print(ATTACK_STRING, res_wpsnr, a) 
 
     lena = cv2.imread('sample_images/lena_grey.bmp', 0)
     if False:
@@ -163,4 +190,4 @@ if __name__ == "__main__":
         #print("Det 2:", det2, " - wpsnr:", wpsnr2)
         #print("Det 3:", det3, " - wpsnr:", wpsnr3)
         if det1 == 1:
-            break
+            break """

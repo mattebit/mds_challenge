@@ -8,12 +8,8 @@ from numpy.linalg import svd
 from scipy.ndimage import gaussian_filter
 from scipy.signal import convolve2d
 
-BLOCK_SIZE = 64
-THRESHOLD_W = 70
-LOW_THRESHOLD = 100
-HIGH_THRESHOLD = 150
-ALPHA = .8
-THRESHOLD = 0.83
+ALPHA = .2
+THRESHOLD = 0.85
 
 
 def wpsnr(img1, img2):
@@ -38,28 +34,6 @@ def similarity(X, X_star):
 
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
-
-
-def select_best_regions(edge_map):
-    h, w = edge_map.shape
-    regions = []
-
-    for i in range(1, h - BLOCK_SIZE + 1, 8):
-        for j in range(1, w - BLOCK_SIZE + 1, 8):
-            block = edge_map[i:i + BLOCK_SIZE, j:j + BLOCK_SIZE]
-            edge_density = np.mean(block)
-
-            regions.append((i, j, edge_density))
-
-    regions = sorted(regions, key=lambda x: x[2], reverse=True)
-
-    selected_regions = []
-    selected_regions.append(regions[0])
-    selected_regions.append(regions[len(regions) - 1])
-    selected_regions.append(regions[int(len(regions) // 2)])
-
-    return [(i, j) for i, j, _ in selected_regions]
-
 
 def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
     was_matrix = False
@@ -89,23 +63,14 @@ def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
 
 def extraction(image_wm, original):
     LL_w, (LH_w, HL_w, HH_w) = pywt.dwt2(image_wm, 'haar')
-    U_w, S_w, V_w = svd(LL_w)
+    LL_2_w, (LH_2_w, HL_2_w, HH_2_w) = pywt.dwt2(LL_w, 'haar')
+    U_w, S_w, V_w = svd(HL_2_w)
 
     LL, (LH, HL, HH) = pywt.dwt2(original, 'haar')
-    U, S, V = svd(LL)
+    LL_2, (LH_2, HL_2, HH_2) = pywt.dwt2(LL, 'haar')
+    U, S, V = svd(HL_2)
 
-    w_ex = np.zeros(128)
-    w_ex_2 = np.zeros(128)
-
-    for i in range(128):
-        val = (S_w[i] - S[i]) / ALPHA
-        w_ex[i]=val
-
-    for i in range(128, 256):
-        val = (S_w[i] - S[i]) / ALPHA
-        w_ex_2[i-128] = val
-
-    ex_avg = np.mean(np.array([w_ex, w_ex_2]), axis=0)
+    w_ex = (S_w - S) / ALPHA
     return w_ex
 
 
@@ -120,17 +85,16 @@ def detection(input1, input2, input3):
     attacked_img = cv2.imread(input3, 0)
 
     original_watermark_ex = extraction(watermarked_img, original_img)
-    original_watermark = np.load("findbrivateknowledge.npy")
-    original_watermark = watermark_to_bytes(original_watermark)
 
-    attacked_watermarks = extraction(attacked_img, original_img)
+    attacked_watermark = extraction(attacked_img, original_img)
 
-    #print(f"similarity: {similarity(original_watermark, attacked_watermarks)}")
-    #print(f"similarity_ex: {similarity(original_watermark, original_watermark_ex)}")
+    mse = np.sqrt(np.square(np.subtract(attacked_watermark[:5], original_watermark_ex[:5])).mean())
+    print("mse:", mse)
 
-    sim = similarity(original_watermark, attacked_watermarks)
+    sim = similarity(original_watermark_ex[:5], attacked_watermark[:5])
+    print("sim:", sim)
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
-    detected = 1 if sim > THRESHOLD else 0
+    detected = 1 if sim > THRESHOLD and mse < 80 else 0
     return detected, wpsnr_res
 
 

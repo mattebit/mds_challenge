@@ -1,7 +1,6 @@
 import io
 import os
 import random
-import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 
@@ -9,7 +8,6 @@ import cv2
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
-from numpy.linalg import svd
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import medfilt
@@ -122,9 +120,9 @@ def step_custom(watermark, watermarked_image, original_image):
     fakemark = np.random.uniform(0.0, 1.0, 1024)
     fakemark = np.uint8(np.rint(fakemark))
     fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
-    #fakemark_path = "fakemark.npy"
-    #np.save(fakemark_path, fakemark)
-    #fakemark = findbrivateknowledge_detection.extraction(fake_image, original_image)
+    # fakemark_path = "fakemark.npy"
+    # np.save(fakemark_path, fakemark)
+    # fakemark = findbrivateknowledge_detection.extraction(fake_image, original_image)
 
     attacked_image, atk = random_attack(watermarked_image)
     wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
@@ -132,8 +130,8 @@ def step_custom(watermark, watermarked_image, original_image):
     w_sim = similarity(watermark, wm_atk)
     w_fake_sim = similarity(wm_atk, fakemark)
 
-    #print(f"Real sim: {w_sim}")
-    #print(f"fake sim: {w_fake_sim}")
+    # print(f"Real sim: {w_sim}")
+    # print(f"fake sim: {w_fake_sim}")
 
     return [[w_sim, 1], [w_fake_sim, 0]]
 
@@ -155,17 +153,17 @@ def compute_roc_curve():
     for i in range(len(sample_images)):
         original_image = sample_images[i]
         watermarked_image = findbrivateknowledge_embedding.embedding(original_image, watermark_path)
-        #fake_image = findbrivateknowledge_embedding.embedding(original_image, fakemark_path)
+        # fake_image = findbrivateknowledge_embedding.embedding(original_image, fakemark_path)
 
         watermark = findbrivateknowledge_detection.extraction(watermarked_image, cv2.imread(original_image, 0))
         print(sample_images[i])
 
-        original_image_read = cv2.imread(original_image,0)
+        original_image_read = cv2.imread(original_image, 0)
 
         with ProcessPoolExecutor() as executor:
             futures = [
                 executor.submit(step_custom, watermark, watermarked_image, original_image_read)
-                for i in range(10)
+                for i in range(2)
             ]
 
         results = []

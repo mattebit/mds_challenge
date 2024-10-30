@@ -3,7 +3,6 @@ from math import sqrt
 import cv2
 import numpy as np
 import pywt
-from numpy.linalg import svd
 from scipy.signal import convolve2d
 
 from mds_challenge.findbrivateknowledge.findbrivateknowledge_detection import watermark_to_bytes
@@ -11,7 +10,7 @@ from mds_challenge.findbrivateknowledge.findbrivateknowledge_detection import wa
 BLOCK_SIZE = 64
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 150
-ALPHA = .86
+ALPHA = .4
 
 
 def wpsnr(img1, img2):
@@ -38,44 +37,6 @@ def similarity(X, X_star):
     return s
 
 
-def embed_watermark_svd(subband, watermark):
-    U, S, V = svd(subband)
-    w_b = watermark_to_bytes(watermark)
-
-    S_watermarked = S.copy()
-
-    for i in range(128):
-        S_watermarked[i] = S[i] + (ALPHA * w_b[i])
-    #for i in range(128,256):
-    #    S_watermarked[i] = S[i] + (ALPHA * w_b[i-128])
-
-    #print(w_b)
-
-    watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
-    return watermarked_subband
-
-
-def select_best_regions(edge_map):
-    h, w = edge_map.shape
-    regions = []
-
-    for i in range(1, h - BLOCK_SIZE + 1, 8):
-        for j in range(1, w - BLOCK_SIZE + 1, 8):
-            block = edge_map[i:i + BLOCK_SIZE, j:j + BLOCK_SIZE]
-            edge_density = np.mean(block)
-
-            regions.append((i, j, edge_density))
-
-    regions = sorted(regions, key=lambda x: x[2], reverse=True)
-
-    selected_regions = []
-    selected_regions.append(regions[0])
-    selected_regions.append(regions[len(regions) - 1])
-    selected_regions.append(regions[int(len(regions) // 2)])
-
-    return [(i, j) for i, j, _ in selected_regions]
-
-
 def embedding(input1, input2):
     """
     input1: original image file name
@@ -83,9 +44,33 @@ def embedding(input1, input2):
     """
     image = cv2.imread(input1, 0)
     watermark = np.load(input2)
+    watermark = watermark_to_bytes(watermark)
 
     LL, (LH, HL, HH) = pywt.dwt2(image, 'haar')
-    LL_prime = embed_watermark_svd(LL, watermark)
+    # LL_prime = embed_watermark_svd(LL, watermark)
+
+    LL_prime = LL.copy()
+
+    key = [(0, i) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
+
+    key = [(1, i) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
+
+    key = [(i, 2) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
 
     watermarked_image = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
 

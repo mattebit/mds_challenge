@@ -142,7 +142,7 @@ def apply_attacks(im: str,
         cv2.imwrite(detection_attacked_path, attacking)
         contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
         os.remove(detection_attacked_path)
-        if contains_w == 0:# and logging.getLogger().level == logging.DEBUG:
+        if contains_w == 0:  # and logging.getLogger().level == logging.DEBUG:
             print(f"Contains w?: {contains_w}, WPSNR: {wpsnr}. Attack: {attack_list}")
     else:
         print("Attack applied: ", attack_list)
@@ -182,7 +182,7 @@ def prepare_attacks(
     res = []
 
     if use_all or use_blur:
-        for i in range(10, 300, 10):
+        for i in range(11, 300, 10):
             res.append([blur(i / 100, i / 100)])
 
     if use_all or use_median:
@@ -264,10 +264,10 @@ def main(watermarked_img_path='watermarked_image.bmp'):
     attacks = prepare_attacks(use_all=True)
     # attacks = prepare_joint_attacks()
 
-    #watermarked_img = cv2.imread(watermarked_img_path, 0)
-    #original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
-    #watermark = np.load('findbrivateknowledge.npy')
-    #watermark = np.resize(watermark, (12, 12))
+    # watermarked_img = cv2.imread(watermarked_img_path, 0)
+    # original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
+    # watermark = np.load('findbrivateknowledge.npy')
+    # watermark = np.resize(watermark, (12, 12))
 
     time_start = datetime.datetime.now()
 

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from scipy.signal import convolve2d
 
-from findbrivateknowledge_detection import detection, extraction, watermark_to_bytes
+from findbrivateknowledge_detection import extraction, watermark_to_bytes, detection
 from findbrivateknowledge_embedding import embedding
 
 
@@ -150,17 +150,21 @@ if __name__ == "__main__":
         watermark = extraction(watermarked_image, lena)
         original_watermark = np.load("findbrivateknowledge.npy")
         original_watermark = watermark_to_bytes(original_watermark)
-        #original_watermark = np.resize(original_watermark, (12,12))
+        # original_watermark = np.resize(original_watermark, (12,12))
 
-        #print(f"similarity: {similarity(watermark, original_watermark)}")
+        # key = [(random.randint(0,255), random.randint(0,255)) for i in range(128)]
+        # print(key)
+        # exit()
+
+        print(f"similarity: {similarity(watermark, original_watermark)}")
 
         det1, wpsnr1 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, FAKE_IMAGE_PATH)
-        #det2, wpsnr2 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, WATERMARKED_IMAGE_PATH)
+        # det2, wpsnr2 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, WATERMARKED_IMAGE_PATH)
         attacked_image = jpeg_compression(watermarked_image, 50)
         cv2.imwrite(ATTACKED_IMAGE_PATH, attacked_image)
-        #det3, wpsnr3 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, ATTACKED_IMAGE_PATH)
+        # det3, wpsnr3 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, ATTACKED_IMAGE_PATH)
         print("Det 1:", det1, " - wpsnr:", wpsnr1)
-        #print("Det 2:", det2, " - wpsnr:", wpsnr2)
-        #print("Det 3:", det3, " - wpsnr:", wpsnr3)
+        # print("Det 2:", det2, " - wpsnr:", wpsnr2)
+        # print("Det 3:", det3, " - wpsnr:", wpsnr3)
         if det1 == 1:
             break

@@ -11,7 +11,7 @@ from mds_challenge.findbrivateknowledge.findbrivateknowledge_detection import wa
 BLOCK_SIZE = 64
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 150
-ALPHA = 5.0
+ALPHA = .86
 
 
 def wpsnr(img1, img2):
@@ -40,14 +40,16 @@ def similarity(X, X_star):
 
 def embed_watermark_svd(subband, watermark):
     U, S, V = svd(subband)
-
     w_b = watermark_to_bytes(watermark)
 
-    Uw, Sw, Vw = svd(w_b)
+    S_watermarked = S.copy()
 
-    S_watermarked = np.zeros(32)
-    for i in range(32):
-        S_watermarked[i] = S[i] + (ALPHA * Sw[i])
+    for i in range(128):
+        S_watermarked[i] = S[i] + (ALPHA * w_b[i])
+    #for i in range(128,256):
+    #    S_watermarked[i] = S[i] + (ALPHA * w_b[i-128])
+
+    #print(w_b)
 
     watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
     return watermarked_subband
@@ -81,22 +83,12 @@ def embedding(input1, input2):
     """
     image = cv2.imread(input1, 0)
     watermark = np.load(input2)
-    watermark = np.reshape(watermark, (32, 32))
 
-    edges = cv2.Canny(image, LOW_THRESHOLD, HIGH_THRESHOLD)
-    regions = select_best_regions(edges)
+    LL, (LH, HL, HH) = pywt.dwt2(image, 'haar')
+    LL_prime = embed_watermark_svd(LL, watermark)
 
-    watermarked_image = image.copy()
-    for region in regions:
-        x, y = region
-        block = image[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE]
+    watermarked_image = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
 
-        LL, (LH, HL, HH) = pywt.dwt2(block, 'haar')
-        LL_prime = embed_watermark_svd(LL, watermark)
-
-        block_prime = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
-
-        watermarked_image[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE] = block_prime
     return watermarked_image
 
 

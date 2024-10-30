@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from scipy.signal import convolve2d
 
-from findbrivateknowledge_detection import detection
+from findbrivateknowledge_detection import detection, extraction, watermark_to_bytes
 from findbrivateknowledge_embedding import embedding
 
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     if False:
         w = np.load("findbrivateknowledge.npy")
         w = watermark_to_bytes(w)
-        w = np.resize(w, (32, 32))
+        w = np.resize(w, (12, 12))
 
         embedded = embedding('lena_grey.bmp', "findbrivateknowledge.npy")
         # cv2.imwrite('embedded.bmp', embedded)
@@ -147,13 +147,20 @@ if __name__ == "__main__":
         fake_image = embedding(ORIGINAL_IMAGE_PATH, RANDOM_WATERMARK_PATH)
         cv2.imwrite(FAKE_IMAGE_PATH, fake_image)
 
+        watermark = extraction(watermarked_image, lena)
+        original_watermark = np.load("findbrivateknowledge.npy")
+        original_watermark = watermark_to_bytes(original_watermark)
+        #original_watermark = np.resize(original_watermark, (12,12))
+
+        #print(f"similarity: {similarity(watermark, original_watermark)}")
+
         det1, wpsnr1 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, FAKE_IMAGE_PATH)
-        det2, wpsnr2 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, WATERMARKED_IMAGE_PATH)
+        #det2, wpsnr2 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, WATERMARKED_IMAGE_PATH)
         attacked_image = jpeg_compression(watermarked_image, 50)
         cv2.imwrite(ATTACKED_IMAGE_PATH, attacked_image)
-        det3, wpsnr3 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, ATTACKED_IMAGE_PATH)
+        #det3, wpsnr3 = detection(ORIGINAL_IMAGE_PATH, WATERMARKED_IMAGE_PATH, ATTACKED_IMAGE_PATH)
         print("Det 1:", det1, " - wpsnr:", wpsnr1)
-        print("Det 2:", det2, " - wpsnr:", wpsnr2)
-        print("Det 3:", det3, " - wpsnr:", wpsnr3)
+        #print("Det 2:", det2, " - wpsnr:", wpsnr2)
+        #print("Det 3:", det3, " - wpsnr:", wpsnr3)
         if det1 == 1:
             break

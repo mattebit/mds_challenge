@@ -1,6 +1,7 @@
 import io
 import os
 import random
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 
@@ -8,6 +9,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
+from numpy.linalg import svd
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import medfilt
@@ -98,9 +100,9 @@ def random_attack(img):
 def step(watermark, watermarked_image, original_image):
     fakemark = np.random.uniform(0.0, 1.0, 1024)
     fakemark = np.uint8(np.rint(fakemark))
-    # fakemark = np.reshape(fakemark, (32, 32))
+    # fakemark = np.reshape(fakemark, (12, 12))
     fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
-    fakemark = np.resize(fakemark, (32, 32))
+    fakemark = np.resize(fakemark, (12, 12))
 
     attacked_image, atk = random_attack(watermarked_image)
     wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
@@ -119,26 +121,21 @@ def step(watermark, watermarked_image, original_image):
 def step_custom(watermark, watermarked_image, original_image):
     fakemark = np.random.uniform(0.0, 1.0, 1024)
     fakemark = np.uint8(np.rint(fakemark))
-
     fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
-    fakemark = np.resize(fakemark, (32, 32))
+    #fakemark_path = "fakemark.npy"
+    #np.save(fakemark_path, fakemark)
+    #fakemark = findbrivateknowledge_detection.extraction(fake_image, original_image)
 
     attacked_image, atk = random_attack(watermarked_image)
     wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
 
-    max_sim = None
-    max_wm = None
-    for w in wm_atk:
-        act_sim = similarity(watermark, w)
-        if max_sim is None or act_sim > max_sim:
-            max_sim = act_sim
-            max_wm = w
+    w_sim = similarity(watermark, wm_atk)
+    w_fake_sim = similarity(wm_atk, fakemark)
 
-    print(f"Real sim: {max_sim}")
-    print(f"fake sim: {similarity(fakemark, max_wm)}")
-    sim_fake = similarity(fakemark, max_wm)
+    #print(f"Real sim: {w_sim}")
+    #print(f"fake sim: {w_fake_sim}")
 
-    return [[max_sim, 1], [sim_fake, 0]]
+    return [[w_sim, 1], [w_fake_sim, 0]]
 
 
 def compute_roc_curve():
@@ -151,8 +148,6 @@ def compute_roc_curve():
     sample_images.sort()
 
     watermark_path = 'findbrivateknowledge.npy'
-    #watermark = np.load(watermark_path)
-    #watermark = np.reshape(watermark, (32, 32))
 
     scores = []
     labels = []
@@ -160,15 +155,17 @@ def compute_roc_curve():
     for i in range(len(sample_images)):
         original_image = sample_images[i]
         watermarked_image = findbrivateknowledge_embedding.embedding(original_image, watermark_path)
-        watermark = findbrivateknowledge_detection.extraction(watermarked_image, cv2.imread(original_image, 0))[1]
+        #fake_image = findbrivateknowledge_embedding.embedding(original_image, fakemark_path)
 
-        original_image = cv2.imread(original_image, 0)
+        watermark = findbrivateknowledge_detection.extraction(watermarked_image, cv2.imread(original_image, 0))
         print(sample_images[i])
+
+        original_image_read = cv2.imread(original_image,0)
 
         with ProcessPoolExecutor() as executor:
             futures = [
-                executor.submit(step_custom, watermark, watermarked_image, original_image)
-                for i in range(100)
+                executor.submit(step_custom, watermark, watermarked_image, original_image_read)
+                for i in range(10)
             ]
 
         results = []

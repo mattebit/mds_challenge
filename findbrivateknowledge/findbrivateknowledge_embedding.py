@@ -3,13 +3,9 @@ from math import sqrt
 import cv2
 import numpy as np
 import pywt
-from scipy.linalg import svd
 from scipy.signal import convolve2d
 
-BLOCK_SIZE = 64
-LOW_THRESHOLD = 100
-HIGH_THRESHOLD = 150
-ALPHA = 5.0
+ALPHA = .4
 
 
 def wpsnr(img1, img2):
@@ -40,38 +36,30 @@ def to_scientific_notation(num, target_exponent):
     formatted_str = f"{num_str[0]}.{num_str[1:]}e{target_exponent}"
     return float(formatted_str) if num >= 0 else -float(formatted_str)
 
-def embed_watermark_svd(subband, watermark):
-    U, S, V = svd(subband)
-    Uw, Sw, Vw = svd(watermark)
+def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
+    was_matrix = False
+    if len(watermark) < 1023:
+        was_matrix = True
+        size = watermark.shape
+        watermark = watermark.flatten()
 
-    for i in range (1, 31):
-        Sw[i] = abs(to_scientific_notation(int(hash(Uw[i].tobytes())), -6))
+    c = 1
+    act_b = ""
+    w_b = []
+    for b in watermark:
+        act_b += str(b)
+        if c == 8:
+            w_b.append(int(act_b, 2))
+            c = 0
+            act_b = ""
+        c += 1
 
-    S_watermarked = S + ALPHA * Sw
-    
-    watermarked_subband = np.dot(U, np.dot(np.diag(S_watermarked), V))
-    return watermarked_subband
+    w_b = np.array(w_b)
 
+    if was_matrix:
+        w_b = np.resize(np.array(w_b), (12, 12))
 
-def select_best_regions(edge_map):
-    h, w = edge_map.shape
-    regions = []
-
-    for i in range(1, h - BLOCK_SIZE + 1, 8):
-        for j in range(1, w - BLOCK_SIZE + 1, 8):
-            block = edge_map[i:i + BLOCK_SIZE, j:j + BLOCK_SIZE]
-            edge_density = np.mean(block)
-
-            regions.append((i, j, edge_density))
-
-    regions = sorted(regions, key=lambda x: x[2], reverse=True)
-
-    selected_regions = []
-    selected_regions.append(regions[0])
-    selected_regions.append(regions[len(regions) - 1])
-    selected_regions.append(regions[int(len(regions) // 2)])
-
-    return [(i, j) for i, j, _ in selected_regions]
+    return w_b
 
 
 def embedding(input1, input2):
@@ -81,24 +69,41 @@ def embedding(input1, input2):
     """
     image = cv2.imread(input1, 0)
     watermark = np.load(input2)
+    watermark = watermark_to_bytes(watermark)
 
-    watermark = cv2.resize(watermark, (32, 32))
+    LL, (LH, HL, HH) = pywt.dwt2(image, 'haar')
 
-    edges = cv2.Canny(image, LOW_THRESHOLD, HIGH_THRESHOLD)
+    LL_prime = LL.copy()
 
-    regions = select_best_regions(edges)
+    key = [(0, i) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
 
-    watermarked_image = image.copy()
-    for region in regions:
-        x, y = region
-        block = image[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE]
+    key = [(i, 255) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
 
-        LL, (LH, HL, HH) = pywt.dwt2(block, 'haar')
-        LL_prime = embed_watermark_svd(LL, watermark)
+    key = [(255 - i, 255) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
 
-        block_prime = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
+    key = [(0, 255 - i) for i in range(128)]
+    c = 0
+    for k in key:
+        x, y = k
+        LL_prime[x][y] += watermark[c] * ALPHA
+        c += 1
 
-        watermarked_image[x:x + BLOCK_SIZE, y:y + BLOCK_SIZE] = block_prime
+    watermarked_image = pywt.idwt2((LL_prime, (LH, HL, HH)), 'haar')
 
     return watermarked_image
 
@@ -106,3 +111,6 @@ def embedding(input1, input2):
 if __name__ == "__main__":
     watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
     cv2.imwrite('findbrivateknowledge_embedded.bmp', np.uint8(watermarked_image))
+
+    lena = cv2.imread('lena_grey.bmp', 0)
+    print(wpsnr(lena, watermarked_image))

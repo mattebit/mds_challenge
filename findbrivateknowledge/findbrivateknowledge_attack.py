@@ -13,7 +13,6 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter
 from scipy.signal import medfilt, convolve2d
 from skimage.transform import rescale
-import logging
 
 from findbrivateknowledge_detection import detection
 
@@ -143,7 +142,7 @@ def apply_attacks(im: str,
         cv2.imwrite(detection_attacked_path, attacking)
         contains_w, wpsnr = detection_function(ORIGINAL_IMG_PATH, im, detection_attacked_path)
         os.remove(detection_attacked_path)
-        if contains_w == 0 and logging.getLogger().level == logging.DEBUG:
+        if contains_w == 0:  # and logging.getLogger().level == logging.DEBUG:
             print(f"Contains w?: {contains_w}, WPSNR: {wpsnr}. Attack: {attack_list}")
     else:
         print("Attack applied: ", attack_list)
@@ -183,11 +182,11 @@ def prepare_attacks(
     res = []
 
     if use_all or use_blur:
-        for i in range(10, 150, 10):
+        for i in range(11, 300, 10):
             res.append([blur(i / 100, i / 100)])
 
     if use_all or use_median:
-        for i in range(1, 6, 2):
+        for i in range(1, 12, 2):
             res.append([median(i)])
 
     if use_all or use_jpeg:
@@ -245,12 +244,10 @@ def prepare_joint_attacks():
     return res
 
 
-def main(watermarked_img_path = 'watermarked_image.bmp'):
-    # Best starting value for attacks
+def main(watermarked_img_path='watermarked_image.bmp'):
     if not os.path.isdir(CACHE_PATH):
         os.mkdir(CACHE_PATH)
 
-    # sample attack vector
     attacks = [
         [{"attack": Attack.BLUR, "params": {"sigma": [0.5, 0.5]}}, ],
         [{"attack": Attack.JPEG, "params": {"QF": 5}}],
@@ -263,16 +260,9 @@ def main(watermarked_img_path = 'watermarked_image.bmp'):
          {"attack": Attack.JPEG, "params": {"QF": 5}}],
     ]
     attacks = prepare_attacks(use_all=True)
-    # attacks = prepare_joint_attacks()
-
-    watermarked_img = cv2.imread(watermarked_img_path, 0)
-    original_img = cv2.imread(ORIGINAL_IMG_PATH, 0)
-    watermark = np.load('findbrivateknowledge.npy')
-    watermark = np.reshape(watermark, (32, 32))
 
     time_start = datetime.datetime.now()
 
-    # Execute attacks
     with ProcessPoolExecutor() as executor:
         futures = [
             executor.submit(apply_attacks, watermarked_img_path, attack, detection)
@@ -298,6 +288,7 @@ def main(watermarked_img_path = 'watermarked_image.bmp'):
 
     print(f"Time taken: {(time_end - time_start).seconds} seconds")
     print(f"max wpsnr: {max_wpsnr}, attack: {max_a}")
+
 
 if __name__ == "__main__":
     main()

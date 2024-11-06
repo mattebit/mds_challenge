@@ -1,17 +1,21 @@
+import io
 import os
 import random
 import time
+from concurrent.futures import ProcessPoolExecutor
 
 import cv2
 import numpy as np
+from PIL import Image
 from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import medfilt
+from skimage.transform import rescale
 from sklearn.metrics import roc_curve, auc
 
-import detection
-import embedding
+import findbrivateknowledge_detection
+import findbrivateknowledge_embedding
 
 
 def similarity(X, X_star):
@@ -25,43 +29,50 @@ def similarity(X, X_star):
     return s
 
 
-def jpeg_compression(img, QF):
-    cv2.imwrite('tmp.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), QF])
-    attacked = cv2.imread('tmp.jpg', 0)
-    os.remove('tmp.jpg')
-    return attacked
-
-
-def blur(img, sigma):
+def blur(img: np.ndarray, sigma) -> np.ndarray:
+    """
+    attack_blur(im, [2,2])
+    """
     attacked = gaussian_filter(img, sigma)
     return attacked
 
 
-def awgn(img, std, seed):
-    mean = 0.0
-    # np.random.seed(seed)
+def awgn(img: np.ndarray, std: int, seed: float, mean: float = 0.0) -> np.ndarray:
+    mean = mean  # some constant
+    np.random.seed(seed)
     attacked = img + np.random.normal(mean, std, img.shape)
     attacked = np.clip(attacked, 0, 255)
     return attacked
 
 
-def sharpening(img, sigma, alpha):
+def sharpening(img: np.ndarray, sigma: float, alpha: float) -> np.ndarray:
     filter_blurred_f = gaussian_filter(img, sigma)
     attacked = img + alpha * (img - filter_blurred_f)
     return attacked
 
 
-def median(img, kernel_size):
+def median(img: np.ndarray, kernel_size: int) -> np.ndarray:
+    """
+    best value kernel_size = 3, higher values cause lower wpsnr linearly
+    """
     attacked = medfilt(img, kernel_size)
     return attacked
 
 
-def resizing(img, scale):
-    from skimage.transform import rescale
+def resizing(img: np.ndarray, scale: float) -> np.ndarray:
     x, y = img.shape
     attacked = rescale(img, scale, preserve_range=True)
     attacked = rescale(attacked, 1 / scale, preserve_range=True)
     attacked = cv2.resize(attacked, (x, y))
+    return attacked
+
+
+def jpeg_compression(img: np.ndarray, QF: int):
+    img = Image.fromarray(img, mode="L")
+    bytes_io = io.BytesIO()
+    img.save(bytes_io, "JPEG", quality=QF)
+    attacked = Image.open(bytes_io)
+    attacked = np.asarray(attacked, dtype=np.uint8)
     return attacked
 
 
@@ -70,7 +81,7 @@ def random_attack(img):
     if i == 1:
         attacked = awgn(img, 3.0, 123)
     elif i == 2:
-        attacked = blur(img, [3, 3])
+        attacked = blur(img, [.5, .5])
     elif i == 3:
         attacked = sharpening(img, 1, 1)
     elif i == 4:
@@ -78,10 +89,45 @@ def random_attack(img):
     elif i == 5:
         attacked = resizing(img, 0.8)
     elif i == 6:
-        attacked = jpeg_compression(img, 75)
+        attacked = jpeg_compression(img, 50)
     elif i == 7:
         attacked = img
     return attacked, i
+
+
+def step(watermark, watermarked_image, original_image):
+    fakemark = np.random.uniform(0.0, 1.0, 1024)
+    fakemark = np.uint8(np.rint(fakemark))
+
+    fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
+    fakemark = np.resize(fakemark, (12, 12))
+
+    attacked_image, atk = random_attack(watermarked_image)
+    wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
+
+    max_sim = None
+    max_wm = None
+    for w in wm_atk:
+        act_sim = similarity(watermark, w)
+        if max_sim is None or act_sim > max_sim:
+            max_sim = act_sim
+            max_wm = w
+
+    return [(max_sim, 1), (similarity(fakemark, max_wm), 0)]
+
+
+def step_custom(watermark, watermarked_image, original_image):
+    fakemark = np.random.uniform(0.0, 1.0, 1024)
+    fakemark = np.uint8(np.rint(fakemark))
+    fakemark = findbrivateknowledge_detection.watermark_to_bytes(fakemark)
+
+    attacked_image, atk = random_attack(watermarked_image)
+    wm_atk = findbrivateknowledge_detection.extraction(attacked_image, original_image)
+
+    w_sim = similarity(watermark, wm_atk)
+    w_fake_sim = similarity(wm_atk, fakemark)
+
+    return [[w_sim, 1], [w_fake_sim, 0]]
 
 
 def compute_roc_curve():
@@ -94,42 +140,32 @@ def compute_roc_curve():
     sample_images.sort()
 
     watermark_path = 'findbrivateknowledge.npy'
-    watermark = np.load(watermark_path)
-    watermark = cv2.resize(watermark, (32, 32))
 
     scores = []
     labels = []
 
     for i in range(len(sample_images)):
         original_image = sample_images[i]
-        watermarked_image = embedding.embedding(original_image, watermark_path)
+        watermarked_image = findbrivateknowledge_embedding.embedding(original_image, watermark_path)
 
-        original_image = cv2.imread(original_image, 0)
+        watermark = findbrivateknowledge_detection.extraction(watermarked_image, cv2.imread(original_image, 0))
         print(sample_images[i])
 
-        sample = 0
-        while sample < 10:
-            fakemark = np.random.uniform(0.0, 1.0, 1024)
-            fakemark = np.uint8(np.rint(fakemark))
-            fakemark = cv2.resize(fakemark, (32, 32))
+        original_image_read = cv2.imread(original_image, 0)
 
-            attacked_image, atk = random_attack(watermarked_image)
-            wm_atk = detection.extraction(attacked_image, original_image)
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(step_custom, watermark, watermarked_image, original_image_read)
+                for i in range(10)
+            ]
 
-            max_sim = None
-            max_wm = None
-            for w in wm_atk:
-                act_sim = similarity(watermark, w)
-                if max_sim is None or act_sim > max_sim:
-                    max_sim = act_sim
-                    max_wm = w
-
-            scores.append(max_sim)
-            labels.append(1)
-
-            scores.append(similarity(fakemark, max_wm))
-            labels.append(0)
-            sample += 1
+        results = []
+        for future in futures:
+            res = future.result()
+            labels.append(res[0][1])
+            scores.append(res[0][0])
+            labels.append(res[1][1])
+            scores.append(res[1][0])
 
     # print('Scores:', scores)
     # print('Labels:', labels)

@@ -10,6 +10,7 @@ from scipy.signal import convolve2d
 ALPHA = .4
 THRESHOLD = 0.8
 
+
 def wpsnr(img1, img2):
     img1 = np.float32(img1) / 255.0
     img2 = np.float32(img2) / 255.0
@@ -22,6 +23,7 @@ def wpsnr(img1, img2):
     decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
 
+
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
     norm_X_star = np.sqrt(np.sum(np.multiply(X_star, X_star)))
@@ -31,6 +33,7 @@ def similarity(X, X_star):
 
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
+
 
 def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
     was_matrix = False
@@ -56,6 +59,7 @@ def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
         w_b = np.resize(np.array(w_b), (12, 12))
 
     return w_b
+
 
 def extraction(image_wm, original):
     LL_w, (LH_w, HL_w, HH_w) = pywt.dwt2(image_wm, 'haar')
@@ -100,6 +104,7 @@ def extraction(image_wm, original):
     ex_avg = np.mean(np.array([w_ex, w_ex_2, w_ex_3, w_ex_4]), axis=0)
     return ex_avg
 
+
 def detection(input1, input2, input3):
     """
     input1: original image
@@ -118,6 +123,7 @@ def detection(input1, input2, input3):
     wpsnr_res = wpsnr(watermarked_img, attacked_img)
     detected = 1 if sim > THRESHOLD else 0
     return detected, wpsnr_res
+
 
 if __name__ == "__main__":
     original_image = 'lena_grey.bmp'

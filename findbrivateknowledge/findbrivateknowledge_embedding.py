@@ -7,6 +7,7 @@ from scipy.signal import convolve2d
 
 ALPHA = .4
 
+
 def wpsnr(img1, img2):
     img1 = np.float32(img1) / 255.0
     img2 = np.float32(img2) / 255.0
@@ -19,6 +20,7 @@ def wpsnr(img1, img2):
     decibels = 20.0 * np.log10(1.0 / sqrt(np.mean(np.mean(ew ** 2))))
     return decibels
 
+
 def similarity(X, X_star):
     norm_X = np.sqrt(np.sum(np.multiply(X, X)))
     norm_X_star = np.sqrt(np.sum(np.multiply(X_star, X_star)))
@@ -28,6 +30,7 @@ def similarity(X, X_star):
 
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
+
 
 def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
     was_matrix = False
@@ -53,6 +56,7 @@ def watermark_to_bytes(watermark: np.ndarray) -> np.ndarray:
         w_b = np.resize(np.array(w_b), (12, 12))
 
     return w_b
+
 
 def embedding(input1, input2):
     """

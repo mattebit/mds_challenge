@@ -5,9 +5,9 @@ import cv2
 import numpy as np
 from scipy.signal import convolve2d
 
+from findbrivateknowledge_attack import Attack, apply_attacks
 from findbrivateknowledge_detection import detection
 from findbrivateknowledge_embedding import embedding
-from findbrivateknowledge_attack import Attack, apply_attacks
 
 
 def wpsnr(img1, img2):
@@ -32,6 +32,7 @@ def similarity(X, X_star):
 
     s = np.sum(np.multiply(X, X_star)) / (norm_X * norm_X_star)
     return s
+
 
 if __name__ == "__main__":
     watermarked_image = embedding('lena_grey.bmp', 'findbrivateknowledge.npy')
